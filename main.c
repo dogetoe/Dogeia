@@ -32,7 +32,9 @@ typedef struct playerstuff {
     int attackspeed;
     int stompdamage;
     bool isfalling;
+    bool iswalking;
     float vy;
+    float vx;
     Rectangle hitbox;
     Texture2D texture;
 } player;
@@ -101,19 +103,23 @@ int main(void) {
     plr.stompdamage = 10;
     plr.attackspeed = 0.5;
     plr.isfalling = false;
+    plr.iswalking = false;
     plr.vy = 0;
+    plr.vx = 0;
     plr.hitbox = (Rectangle){ plr.pos.x, plr.pos.y, plr.size.x, plr.size.y };
     plr.texture = LoadTexture("SirAdamDogeingknight.png");
 
     while (!WindowShouldClose()) {
         // update player movement
         if (IsKeyDown(KEY_A)) {
+            plr.vx = -1;
             plr.pos.x -= 4;
             plr.hitbox.x = plr.pos.x;
             plr.hitbox.y = plr.pos.y;
 
         }
         if (IsKeyDown(KEY_D)) {
+            plr.vx = 1;
             plr.pos.x += 4;
             plr.hitbox.x = plr.pos.x;
             plr.hitbox.y = plr.pos.y;
@@ -125,12 +131,43 @@ int main(void) {
             plr.hitbox.y = plr.pos.y;
         }
 
+        // horizontal check
         if (CheckCollisionRecs(plr.hitbox, spik.hitbox)) {
-            plr.isfalling = false;
+            if (plr.vx > 0) {
+                plr.pos.x = spik.hitbox.x - plr.size.x - 0.01f;
+                plr.hitbox.x = plr.pos.x;
+                plr.hitbox.y = plr.pos.y;
+            } else if (plr.vx < 0) {
+                plr.pos.x = spik.hitbox.x + spik.hitbox.width + 0.01f;
+                plr.hitbox.x = plr.pos.x;
+                plr.hitbox.y = plr.pos.y;
+            }
+            plr.vx = 0;
+        } else {
+            plr.hitbox.x = plr.pos.x;
+            plr.hitbox.y = plr.pos.y;
+        }
+
+        // vertical check
+        if (CheckCollisionRecs(plr.hitbox,spik.hitbox)) {
+            if (plr.vy > 0) {
+                // Falling down → landed
+                plr.pos.y = spik.hitbox.y - plr.size.y - 0.01f;
+                plr.isfalling = false;
+                plr.hitbox.x = plr.pos.x;
+                plr.hitbox.y = plr.pos.y;
+            } else if (plr.vy < 0) {
+                // Bonking head
+                plr.pos.y = spik.hitbox.y + spik.hitbox.height + 0.01f;
+                plr.hitbox.x = plr.pos.x;
+                plr.hitbox.y = plr.pos.y;
+            }
             plr.vy = 0;
         } else {
             plr.isfalling = true;
             plr.vy = 6;
+            plr.hitbox.x = plr.pos.x;
+            plr.hitbox.y = plr.pos.y;
         }
 
         // Draw
