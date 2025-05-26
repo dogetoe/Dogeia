@@ -85,9 +85,9 @@ int main(void) {
 
 
     spike spik;
-    spik.pos.x = 600;
-    spik.pos.y = 500;
-    spik.size.x = 80;
+    spik.pos.x = 0;
+    spik.pos.y = 1000;
+    spik.size.x = GAME_WIDTH;
     spik.size.y = 80;
     spik.hitbox = (Rectangle){spik.pos.x, spik.pos.y, spik.size.x, spik.size.y};
     spik.type = HAZARD_SPIKE;
@@ -130,82 +130,42 @@ int main(void) {
             plr.hitbox.x = plr.pos.x;
             plr.hitbox.y = plr.pos.y;
         }
-        if (plr.vy > 0) {
-            plr.pos.y += plr.vy;
+
+        // Update hitbox after horizontal move
+        plr.hitbox.x = plr.pos.x;
+        plr.hitbox.y = plr.pos.y;
+
+        // Horizontal collision with spike
+        if (CheckCollisionRecs(plr.hitbox, spik.hitbox)) {
+            if (plr.vx > 0) {
+            plr.pos.x = spik.hitbox.x - plr.size.x;
+            } else if (plr.vx < 0) {
+            plr.pos.x = spik.hitbox.x + spik.hitbox.width;
+            }
+            plr.vx = 0;
             plr.hitbox.x = plr.pos.x;
-            plr.hitbox.y = plr.pos.y;
         }
 
-        // collision check
-        if (CheckCollisionRecs(plr.hitbox, spik.hitbox)) {
+        // ---- Vertical movement & collision
+        plr.vy += 0.09f; // gravity
+        plr.pos.y += plr.vy;
 
-            if (plr.isfalling == false) {
-                if (plr.vx > 0) {
-                    for (int i = 0; i < 10000; i++) {
-                        plr.pos.x -= 0.01f;
-                        plr.hitbox.x = plr.pos.x;
-                        plr.hitbox.y = plr.pos.y;
-                        if (CheckCollisionRecs(plr.hitbox, spik.hitbox)) {
-                            continue;
-                        } else {
-                            break;
-                        }
-                    }
-                    plr.hitbox.x = plr.pos.x;
-                    plr.hitbox.y = plr.pos.y;
-                } else if (plr.vx < 0) {
-                    for (int i = 0; i < 10000; i++) {
-                        plr.pos.x += 0.01f;
-                        plr.hitbox.x = plr.pos.x;
-                        plr.hitbox.y = plr.pos.y;
-                        if (CheckCollisionRecs(plr.hitbox, spik.hitbox)) {
-                            continue;
-                        } else {
-                            break;
-                        }
-                    }
-                    plr.hitbox.x = plr.pos.x;
-                    plr.hitbox.y = plr.pos.y;
-                }
-            } else {
-                if (plr.vy > 0) {
-                    // Falling down → landed
-                    for (int i = 0; i < 10000; i++) {
-                        plr.pos.y -= 0.01f;
-                        plr.hitbox.x = plr.pos.x;
-                        plr.hitbox.y = plr.pos.y;
-                        if (CheckCollisionRecs(plr.hitbox, spik.hitbox)) {
-                            continue;
-                        } else {
-                            break;
-                        }
-                    }
-                    plr.isfalling = false;
-                    plr.hitbox.x = plr.pos.x;
-                    plr.hitbox.y = plr.pos.y;
-                } else if (plr.vy < 0) {
-                    // Bonking head
-                    for (int i = 0; i < 10000; i++) {
-                        plr.pos.x += 0.01f;
-                        plr.hitbox.x = plr.pos.x;
-                        plr.hitbox.y = plr.pos.y;
-                        if (CheckCollisionRecs(plr.hitbox, spik.hitbox)) {
-                            continue;
-                        } else {
-                            break;
-                        }
-                    }
-                    plr.hitbox.x = plr.pos.x;
-                    plr.hitbox.y = plr.pos.y;
-                }
-                plr.vy = 0;
-                plr.vx = 0;
-            }
-        } else {
-            plr.isfalling = true;
-            plr.vy = 6;
-            plr.hitbox.x = plr.pos.x;
-            plr.hitbox.y = plr.pos.y;
+        // Update hitbox again after vertical move
+        plr.hitbox.x = plr.pos.x;
+        plr.hitbox.y = plr.pos.y;
+
+        // Vertical collision with spike
+        if (CheckCollisionRecs(plr.hitbox, spik.hitbox)) {
+            if (plr.vy > 0) {
+            // Falling down
+            plr.pos.y = spik.hitbox.y - plr.size.y;
+            plr.isfalling = false;
+        } else if (plr.vy < 0) {
+            // Jumping up into spike
+            plr.pos.y = spik.hitbox.y + spik.hitbox.height;
+        }
+        plr.vy = 0;
+        plr.hitbox.y = plr.pos.y;
         }
 
         // Draw
