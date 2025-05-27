@@ -2,9 +2,11 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdlib.h>
+#include <math.h>
 
 #define GAME_WIDTH  1920
 #define GAME_HEIGHT 1080
+#define PLAYER_JUMP_SPD -350.0f
 
 // a million different structs and functions here lol
 
@@ -33,8 +35,12 @@ typedef struct playerstuff {
     int damage;
     int attackspeed;
     int stompdamage;
+    float jumptime;
+    float maxheight;
     bool isfalling;
     bool iswalking;
+    bool isjumping;
+    bool iscolliding;
     float vy;
     float vx;
     Rectangle hitbox;
@@ -51,6 +57,16 @@ typedef struct spike {
     EntityType type;
 } spike;
 
+typedef struct ground {
+    Vector2 pos;
+    Vector2 size;
+    int id;
+    Rectangle hitbox;
+    Texture2D* texture;
+    EntityType type;
+} ground;
+
+
 void DrawHairry(hairry h) {
     DrawCircleV(h.pos, h.size, BLACK);
 }
@@ -63,6 +79,13 @@ void DrawPlayer(player rect) {
 }
 
 void DrawSpike(spike rect) {
+    Rectangle source = { 0, 0, rect.texture->width, rect.texture->height };
+    Rectangle dest = { rect.pos.x, rect.pos.y, rect.size.x, rect.size.y };
+    Vector2 origin = { 0, 0 };
+    DrawTexturePro(*rect.texture, source, dest, origin, 0.0f, WHITE);
+}
+
+void DrawGround(ground rect) {
     Rectangle source = { 0, 0, rect.texture->width, rect.texture->height };
     Rectangle dest = { rect.pos.x, rect.pos.y, rect.size.x, rect.size.y };
     Vector2 origin = { 0, 0 };
@@ -90,8 +113,52 @@ spike* NewSpike(const spike* blueprint, int id) {
     return s;
 }
 
+ground* CloneGround(const ground* blueprint, int new_id) {
+    return &(ground){
+        .id = new_id,
+        .texture = blueprint->texture,
+        .pos = blueprint->pos,
+        .hitbox = (Rectangle){
+            blueprint->pos.x,
+            blueprint->pos.y,
+            blueprint->hitbox.width,
+            blueprint->hitbox.height
+        }
+    };
+}
+
+ground* NewGround(const ground* blueprint, int id) {
+    ground* s = malloc(sizeof(ground));
+    if (!s) return NULL;
+    *s = *CloneGround(blueprint, id);  // copy the clean temp struct
+    return s;
+}
+
+float round60(float value) {
+    float remainder = fmodf(value, 60.0);
+
+    if (remainder >= 60.0) {
+        value += (60.0 - remainder);
+        return value;
+    } else {
+        value -= remainder;
+        return value;
+    }
+}
+
+bool inEditor;
+
 spike* spikeList[40000]; // array of spike pointers
 int spikeCount = 0;
+
+ground* groundList[40000]; // array of ground pointers
+int groundCount = 0;
+
+int objectCount = 0;
+
+int objectPlaceID = 0; // just lets the game know what object you wanna place down, eg. 0 = a spike, 1 = ground
+
+float gravity = 1000.0f;
 
 int main(void) {
     hairry firsthairry;
@@ -128,16 +195,31 @@ int main(void) {
     plr.size.x = 60;
     plr.size.y = 60;
     plr.damage = 5;
+    plr.jumptime = 0;
+    plr.maxheight = 90;
     plr.stompdamage = 10;
     plr.attackspeed = 0.5;
     plr.isfalling = false;
     plr.iswalking = false;
+    plr.isjumping = false;
     plr.vy = 0;
     plr.vx = 0;
     plr.hitbox = (Rectangle){ plr.pos.x, plr.pos.y, plr.size.x, plr.size.y };
     plr.texture = LoadTexture("SirAdamDogeingknight.png");
 
+    ground groond;
+    groond.pos.x = 0;
+    groond.pos.y = 0;
+    groond.size.x = 60;
+    groond.size.y = 60;
+    groond.hitbox = (Rectangle){groond.pos.x, groond.pos.y, groond.size.x, groond.size.y};
+    Texture2D groundTex = LoadTexture("Grassunf.png");
+    groond.texture = &groundTex;
+    groond.type = GROUND;
+
     while (!WindowShouldClose()) {
+        float dt = GetFrameTime();
+
         // update player movement
         if (IsKeyDown(KEY_A)) {
             plr.vx = -1;
@@ -158,24 +240,53 @@ int main(void) {
             plr.hitbox.x = plr.pos.x;
             plr.hitbox.y = plr.pos.y;
         }
-        if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && spikeCount < 40000) {
-            Vector2 pos = GetMousePosition();
-            spike* newSpike = NewSpike(&spik, spikeCount);
-            
-            // Customize new spike's position & size
-            newSpike->pos = pos;
-            newSpike->size = (Vector2){ 60, 60 };
-            newSpike->hitbox = (Rectangle){ pos.x, pos.y, newSpike->size.x, newSpike->size.y };
-            newSpike->texture = &spikeTex;
+        if (IsKeyPressed(KEY_P)) {
+            objectPlaceID = 0;
+        }
+        if (IsKeyPressed(KEY_O)) {
+            objectPlaceID = 1;
+        }
+        if (IsKeyPressed(KEY_SPACE) && plr.iscolliding == true) {
+            plr.iscolliding = false;
+            plr.isjumping = true;
+            plr.vy = -400.0;
+        }
         
-            spikeList[spikeCount++] = newSpike;
+        objectCount = spikeCount + groundCount;
+        if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && objectCount <= 40000) {
+            Vector2 pos = GetMousePosition();
+            pos.x = round60(pos.x);
+            pos.y = round60(pos.y);
+            if (objectPlaceID == 0) {
+            
+                spike* newSpike = NewSpike(&spik, spikeCount);
+            
+                // Customize new spike's position & size to default
+                newSpike->pos = pos;
+                newSpike->size = (Vector2){ 60, 60 };
+                newSpike->hitbox = (Rectangle){ pos.x, pos.y, newSpike->size.x, newSpike->size.y };
+                newSpike->texture = &spikeTex;
+        
+                spikeList[spikeCount++] = newSpike;
+            } else if (objectPlaceID == 1) {
+
+                ground* newGround = NewGround(&groond, groundCount);
+            
+                // Customize new ground's position & size to default
+                newGround->pos = pos;
+                newGround->size = (Vector2){ 60, 60 };
+                newGround->hitbox = (Rectangle){ pos.x, pos.y, newGround->size.x, newGround->size.y };
+                newGround->texture = &groundTex;
+        
+                groundList[groundCount++] = newGround;
+            }
         }
 
         // Update hitbox after horizontal move
         plr.hitbox.x = plr.pos.x;
         plr.hitbox.y = plr.pos.y;
 
-        // Horizontal collision with spike
+        // horizontal collision with spike
         for (int i = 0; i < spikeCount; i++) {
             if (CheckCollisionRecs(plr.hitbox, spikeList[i]->hitbox)) {
                 if (plr.vx > 0) {
@@ -188,24 +299,57 @@ int main(void) {
             }
         }
 
+        // horizontal collision with ground
+        for (int i = 0; i < groundCount; i++) {
+            if (CheckCollisionRecs(plr.hitbox, groundList[i]->hitbox)) {
+                if (plr.vx > 0) {
+                plr.pos.x = groundList[i]->hitbox.x - plr.size.x;
+                } else if (plr.vx < 0) {
+                plr.pos.x = groundList[i]->hitbox.x + groundList[i]->hitbox.width;
+                }
+                plr.vx = 0;
+                plr.hitbox.x = plr.pos.x;
+            }
+        }
+
         // ---- Vertical movement & collision
-        plr.vy += 0.09f; // gravity
-        plr.pos.y += plr.vy;
+        plr.vy += gravity * dt;
+        plr.pos.y += plr.vy * dt;
 
         // Update hitbox again after vertical move
         plr.hitbox.x = plr.pos.x;
         plr.hitbox.y = plr.pos.y;
 
-        // Vertical collision with spike
+        // vertical collision with spike
         for (int i = 0; i < spikeCount; i++) {
             if (CheckCollisionRecs(plr.hitbox, spikeList[i]->hitbox)) {
                 if (plr.vy > 0) {
                 // Falling down
                 plr.pos.y = spikeList[i]->hitbox.y - plr.size.y;
                 plr.isfalling = false;
+                plr.iscolliding = true;
             } else if (plr.vy < 0) {
                 // Jumping up into spike
                 plr.pos.y = spikeList[i]->hitbox.y + spikeList[i]->hitbox.height;
+                plr.iscolliding = false;
+            }
+            plr.vy = 0;
+            plr.hitbox.y = plr.pos.y;
+            }
+        }
+
+        // vertical collision with ground
+        for (int i = 0; i < groundCount; i++) {
+            if (CheckCollisionRecs(plr.hitbox, groundList[i]->hitbox)) {
+                if (plr.vy > 0) {
+                // Falling down
+                plr.pos.y = groundList[i]->hitbox.y - plr.size.y;
+                plr.isfalling = false;
+                plr.iscolliding = true;
+            } else if (plr.vy < 0) {
+                // Jumping up into spike
+                plr.pos.y = groundList[i]->hitbox.y + groundList[i]->hitbox.height;
+                plr.iscolliding = false;
             }
             plr.vy = 0;
             plr.hitbox.y = plr.pos.y;
@@ -219,12 +363,15 @@ int main(void) {
         BeginTextureMode(target);
         ClearBackground(DARKBLUE);
 
-        DrawText("WASD to move the doge", 10, 10, 20, RAYWHITE);
+        DrawText("A & D to move the doge", 10, 10, 20, RAYWHITE);
         DrawPlayer(plr);
         DrawHairry(firsthairry);
         DrawSpike(spik);
         for (int i = 0; i < spikeCount; i++) {
             DrawSpike(*spikeList[i]);
+        }
+        for (int i = 0; i < groundCount; i++) {
+            DrawGround(*groundList[i]);
         }
 
         EndTextureMode();
@@ -262,6 +409,10 @@ int main(void) {
     for (int i = 0; i < spikeCount; i++) {
         free(spikeList[i]);
     }
+    for (int i = 0; i < groundCount; i++) {
+        free(groundList[i]);
+    }
+    UnloadTexture(groundTex);
     UnloadTexture(spikeTex);
     UnloadTexture(plr.texture);
     UnloadRenderTexture(target);
