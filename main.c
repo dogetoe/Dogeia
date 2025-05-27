@@ -146,7 +146,7 @@ float round60(float value) {
     }
 }
 
-bool inEditor;
+bool inEditor = false;
 
 spike* spikeList[40000]; // array of spike pointers
 int spikeCount = 0;
@@ -159,6 +159,11 @@ int objectCount = 0;
 int objectPlaceID = 0; // just lets the game know what object you wanna place down, eg. 0 = a spike, 1 = ground
 
 float gravity = 1000.0f;
+
+bool showDeathBox = false;
+float deathBoxDuration = 2.5f;
+float deathTime = 0.0f;
+bool tele = false;
 
 int main(void) {
     hairry firsthairry;
@@ -183,7 +188,7 @@ int main(void) {
     spik.pos.y = 1000;
     spik.size.x = GAME_WIDTH;
     spik.size.y = 80;
-    spik.hitbox = (Rectangle){spik.pos.x, spik.pos.y, spik.size.x, spik.size.y};
+    spik.hitbox = (Rectangle){spik.pos.x, spik.pos.y, spik.size.x / 4, spik.size.y / 4};
     spik.type = HAZARD_SPIKE;
     Texture2D spikeTex = LoadTexture("Spikeunf.png");
     spik.texture = &spikeTex;
@@ -264,7 +269,7 @@ int main(void) {
                 // Customize new spike's position & size to default
                 newSpike->pos = pos;
                 newSpike->size = (Vector2){ 60, 60 };
-                newSpike->hitbox = (Rectangle){ pos.x, pos.y, newSpike->size.x, newSpike->size.y };
+                newSpike->hitbox = (Rectangle){ pos.x + newSpike->size.x * 0.375, pos.y + newSpike->size.y * 0.375, newSpike->size.x / 4, newSpike->size.y / 4 };
                 newSpike->texture = &spikeTex;
         
                 spikeList[spikeCount++] = newSpike;
@@ -291,8 +296,10 @@ int main(void) {
             if (CheckCollisionRecs(plr.hitbox, spikeList[i]->hitbox)) {
                 if (plr.vx > 0) {
                 plr.pos.x = spikeList[i]->hitbox.x - plr.size.x;
+                plr.health = 0;
                 } else if (plr.vx < 0) {
                 plr.pos.x = spikeList[i]->hitbox.x + spikeList[i]->hitbox.width;
+                plr.health = 0;
                 }
                 plr.vx = 0;
                 plr.hitbox.x = plr.pos.x;
@@ -327,11 +334,12 @@ int main(void) {
                 // Falling down
                 plr.pos.y = spikeList[i]->hitbox.y - plr.size.y;
                 plr.isfalling = false;
-                plr.iscolliding = true;
+                plr.health = 0;
             } else if (plr.vy < 0) {
                 // Jumping up into spike
                 plr.pos.y = spikeList[i]->hitbox.y + spikeList[i]->hitbox.height;
                 plr.iscolliding = false;
+                plr.health = 0;
             }
             plr.vy = 0;
             plr.hitbox.y = plr.pos.y;
@@ -356,6 +364,18 @@ int main(void) {
             }
         }
 
+        // check if it's time to get rid of death message
+        if (showDeathBox && (GetTime() - deathTime >= deathBoxDuration)) {
+            showDeathBox = false;
+            plr.health = 100;
+            if (tele == false) {
+                plr.pos.x = 400;
+                plr.pos.y = 100;
+                tele = true;
+                plr.vy = 0;
+            }
+        }
+
         // Draw
         BeginDrawing();
 
@@ -372,6 +392,9 @@ int main(void) {
         }
         for (int i = 0; i < groundCount; i++) {
             DrawGround(*groundList[i]);
+        }
+        if (showDeathBox) {
+            DrawText("You died...", 960, 540, 20, RAYWHITE);
         }
 
         EndTextureMode();
@@ -404,6 +427,59 @@ int main(void) {
         );
 
         EndDrawing();
+        Vector2 mouse = GetMousePosition();
+
+        Vector2 worldMouse = {
+            (mouse.x - offsetX) / scale,
+            (mouse.y - offsetY) / scale
+        };
+
+        // check delete spikes
+        for (int i = 0; i < spikeCount; i++) {
+            if (spikeList[i] && CheckCollisionPointRec(worldMouse, spikeList[i]->hitbox)) {
+                // if right mousebutton
+                if (IsMouseButtonPressed(MOUSE_RIGHT_BUTTON)) {
+                    int spikeid = spikeList[i]->id;
+                    free(spikeList[i]);
+                    for (int j = spikeid; j < spikeCount - 1; j++) {
+                        spikeList[j] = spikeList[j + 1];
+                    }
+                    spikeList[spikeCount - 1] = NULL;
+                    spikeCount--;
+                    for (int k = spikeid; k < spikeCount; k++) {
+                        spikeList[k]->id = k;
+                    }
+                }
+            }
+        }
+
+        // check delete ground
+        for (int i = 0; i < groundCount; i++) {
+            if (groundList[i] && CheckCollisionPointRec(worldMouse, groundList[i]->hitbox)) {
+                // if right mousebutton
+                if (IsMouseButtonPressed(MOUSE_RIGHT_BUTTON)) {
+                    int groundid = groundList[i]->id;
+                    free(groundList[i]);
+                    for (int j = groundid; j < groundCount - 1; j++) {
+                        groundList[j] = groundList[j + 1];
+                    }
+                    groundList[groundCount - 1] = NULL;
+                    groundCount--;
+                    for (int k = groundid; k < groundCount; k++) {
+                        groundList[k]->id = k;
+                    }
+                }
+            }
+        }
+
+        if (plr.health == 0 && !showDeathBox) {
+            showDeathBox = true;
+            deathTime = GetTime();
+            plr.pos.x = -100000;
+            plr.pos.y = -100000;
+            tele = false;
+        }
+        
     }
 
     for (int i = 0; i < spikeCount; i++) {
