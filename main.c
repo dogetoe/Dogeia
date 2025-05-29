@@ -43,7 +43,9 @@ typedef struct playerstuff {
     bool iscolliding;
     float vy;
     float vx;
+    float stamina;
     Rectangle hitbox;
+    Rectangle dashhitbox; // only used for dash collision checking
     Texture2D texture;
 } player;
 
@@ -146,13 +148,74 @@ float round60(float value) {
     }
 }
 
-bool inEditor = false;
-
 spike* spikeList[40000]; // array of spike pointers
 int spikeCount = 0;
 
 ground* groundList[40000]; // array of ground pointers
 int groundCount = 0;
+
+// update this whenever i add a new block that can be collided with (this function is for right-facing dashes)
+bool rightDashCheck(player *plr) {
+    bool shoulddash = false;
+    plr->dashhitbox.x = plr->pos.x;
+    plr->dashhitbox.y = plr->pos.y;
+    for (int k = 0; k < 180; k++) {
+
+        plr->dashhitbox.x += 1;
+
+        for (int i = 0; i < spikeCount; i++) {
+            if (CheckCollisionRecs(plr->dashhitbox, spikeList[i]->hitbox)) { 
+                plr->dashhitbox.x = spikeList[i]->hitbox.x - plr->size.x;
+                shoulddash = true;
+                goto what;
+            }
+        }
+
+        for (int i = 0; i < groundCount; i++) {
+            if (CheckCollisionRecs(plr->dashhitbox, groundList[i]->hitbox)) {    
+                plr->dashhitbox.x = groundList[i]->hitbox.x - plr->size.x;
+                shoulddash = true; 
+                goto what;
+            }
+        }
+    }
+    what:
+        plr->pos.x = plr->dashhitbox.x;
+    return shoulddash;
+}
+
+// pretty much the same as the right one but for the left
+bool leftDashCheck(player *plr) {
+    bool shoulddash = false;
+    plr->dashhitbox.x = plr->pos.x;
+    plr->dashhitbox.y = plr->pos.y;
+    for (int k = 0; k < 180; k++) {
+
+        plr->dashhitbox.x -= 1;
+
+        for (int i = 0; i < spikeCount; i++) {
+            if (CheckCollisionRecs(plr->dashhitbox, spikeList[i]->hitbox)) {
+                plr->dashhitbox.x = spikeList[i]->hitbox.x + spikeList[i]->hitbox.width;
+                shoulddash = true;
+                goto what;
+            }
+        }
+
+        for (int i = 0; i < groundCount; i++) {
+            if (CheckCollisionRecs(plr->dashhitbox, groundList[i]->hitbox)) {
+                plr->dashhitbox.x = groundList[i]->hitbox.x + groundList[i]->hitbox.width;
+                shoulddash = true;
+                goto what;
+            }
+        }
+    }
+    what:
+        plr->pos.x = plr->dashhitbox.x;
+
+    return shoulddash;
+}
+
+bool inEditor = false;
 
 int objectCount = 0;
 
@@ -164,6 +227,10 @@ bool showDeathBox = false;
 float deathBoxDuration = 2.5f;
 float deathTime = 0.0f;
 bool tele = false;
+bool isfacingright = true;
+float dashcd = 0.5f;
+float dashtime = 0.0f;
+bool candash = true;
 
 int main(void) {
     hairry firsthairry;
@@ -209,7 +276,9 @@ int main(void) {
     plr.isjumping = false;
     plr.vy = 0;
     plr.vx = 0;
+    plr.stamina = 100;
     plr.hitbox = (Rectangle){ plr.pos.x, plr.pos.y, plr.size.x, plr.size.y };
+    plr.dashhitbox = (Rectangle){ plr.pos.x, plr.pos.y, plr.size.x, plr.size.y };
     plr.texture = LoadTexture("SirAdamDogeingknight.png");
 
     ground groond;
@@ -231,14 +300,14 @@ int main(void) {
             plr.pos.x -= 4;
             plr.hitbox.x = plr.pos.x;
             plr.hitbox.y = plr.pos.y;
-
+            isfacingright = false;
         }
         if (IsKeyDown(KEY_D)) {
             plr.vx = 1;
             plr.pos.x += 4;
             plr.hitbox.x = plr.pos.x;
             plr.hitbox.y = plr.pos.y;
-
+            isfacingright = true;
         }
         if (IsKeyUp(KEY_A) && IsKeyUp(KEY_D)) {
             plr.vx = 0;
@@ -256,6 +325,41 @@ int main(void) {
             plr.isjumping = true;
             plr.vy = -400.0;
         }
+        if (!candash && (GetTime() - dashtime >= dashcd)) {
+            candash = true;
+        }
+        if (IsKeyPressed(KEY_R)) {
+            if (candash) {
+                candash = false;
+                dashtime = GetTime();
+                if (isfacingright == true) {
+                    if (rightDashCheck(&plr)) {
+                        plr.pos.x = plr.dashhitbox.x;
+                        plr.vy = 0;
+                        plr.hitbox.y = plr.pos.y;
+                        plr.hitbox.x = plr.pos.x;
+                    } else {
+                        plr.pos.x = plr.dashhitbox.x;
+                        plr.vy = 0;
+                        plr.hitbox.y = plr.pos.y;
+                        plr.hitbox.x = plr.pos.x;
+                    }
+                } else if (isfacingright == false) {
+                    if (leftDashCheck(&plr)) {
+                        plr.pos.x = plr.dashhitbox.x;
+                        plr.vy = 0;
+                        plr.hitbox.y = plr.pos.y;
+                        plr.hitbox.x = plr.pos.x;
+                    } else {
+                        plr.pos.x = plr.dashhitbox.x;
+                        plr.vy = 0;
+                        plr.hitbox.y = plr.pos.y;
+                        plr.hitbox.x = plr.pos.x;
+                    }
+                }
+            }
+        }
+        
         
         objectCount = spikeCount + groundCount;
         if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && objectCount <= 40000) {
