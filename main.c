@@ -68,7 +68,6 @@ typedef struct ground {
     EntityType type;
 } ground;
 
-
 void DrawHairry(hairry h) {
     DrawCircleV(h.pos, h.size, BLACK);
 }
@@ -187,6 +186,8 @@ bool rightDashCheck(player *plr) {
 // pretty much the same as the right one but for the left
 bool leftDashCheck(player *plr) {
     bool shoulddash = false;
+    plr->dashhitbox.width = plr->size.x;
+    plr->dashhitbox.height = plr->size.y;
     plr->dashhitbox.x = plr->pos.x;
     plr->dashhitbox.y = plr->pos.y;
     for (int k = 0; k < 180; k++) {
@@ -210,14 +211,30 @@ bool leftDashCheck(player *plr) {
         }
     }
     what:
-        plr->pos.x = plr->dashhitbox.x;
+        plr->dashhitbox.x = plr->dashhitbox.x;
 
     return shoulddash;
 }
 
-bool inEditor = false;
+void unloadlevel() {
+    for (int i = 0; i < spikeCount; i++) {
+        free(spikeList[i]);
+    }
+    for (int i = 0; i < groundCount; i++) {
+        free(groundList[i]);
+    }
+}
 
-int objectCount = 0;
+// menu nav bools
+bool inEditor = false;
+bool inMainMenu = true;
+bool inEditorPauseMenu = false;
+
+// bools for if you are either play testing a level or in an actual one
+bool isPlayTesting = false;
+bool isplaying = false;
+
+int objectCount = 0; // object count is all the sum of all the blocks that are placed down and is used to limit on how big levels can be (in a file sense and in a physical sense)
 
 int objectPlaceID = 0; // just lets the game know what object you wanna place down, eg. 0 = a spike, 1 = ground
 
@@ -232,6 +249,8 @@ float dashcd = 0.5f;
 float dashtime = 0.0f;
 bool candash = true;
 
+Rectangle editorEnterHitbox = (Rectangle){GAME_WIDTH / 2, 600, 50, 50};
+
 int main(void) {
     hairry firsthairry;
     firsthairry.pos.x = 600;
@@ -242,6 +261,7 @@ int main(void) {
     firsthairry.attackspeed = 1;
     firsthairry.type = ENTITY_ENEMY_HAIRRY;
 
+    SetConfigFlags(FLAG_FULLSCREEN_MODE);
     InitWindow(GAME_WIDTH, GAME_HEIGHT, "Dogeia");
     MaximizeWindow();
     SetTargetFPS(60);
@@ -294,67 +314,91 @@ int main(void) {
     while (!WindowShouldClose()) {
         float dt = GetFrameTime();
 
+        float screenRadio = (float)GetScreenWidth() / (float)GetScreenHeight();
+        float gameRadio   = (float)GAME_WIDTH / (float)GAME_HEIGHT;
+
+        float skale = 1.0f;
+        int offsetex = 0, offsetwhy = 0;
+
+        if (screenRadio > gameRadio) {
+            // Screen is wider — pillarbox
+            skale = (float)GetScreenHeight() / GAME_HEIGHT;
+            offsetex = (GetScreenWidth() - (int)(GAME_WIDTH * skale)) / 2;
+        } else {
+            // Screen is taller — letterbox
+            skale = (float)GetScreenWidth() / GAME_WIDTH;
+            offsetwhy = (GetScreenHeight() - (int)(GAME_HEIGHT * skale)) / 2;
+        }
+        Vector2 mouse = GetMousePosition();
+
+        Vector2 worldMouse = {
+            (mouse.x - offsetex) / skale,
+            (mouse.y - offsetwhy) / skale
+        };
+
         // update player movement
-        if (IsKeyDown(KEY_A)) {
-            plr.vx = -1;
-            plr.pos.x -= 4;
-            plr.hitbox.x = plr.pos.x;
-            plr.hitbox.y = plr.pos.y;
-            isfacingright = false;
-        }
-        if (IsKeyDown(KEY_D)) {
-            plr.vx = 1;
-            plr.pos.x += 4;
-            plr.hitbox.x = plr.pos.x;
-            plr.hitbox.y = plr.pos.y;
-            isfacingright = true;
-        }
-        if (IsKeyUp(KEY_A) && IsKeyUp(KEY_D)) {
-            plr.vx = 0;
-            plr.hitbox.x = plr.pos.x;
-            plr.hitbox.y = plr.pos.y;
-        }
-        if (IsKeyPressed(KEY_P)) {
-            objectPlaceID = 0;
-        }
-        if (IsKeyPressed(KEY_O)) {
-            objectPlaceID = 1;
-        }
-        if (IsKeyPressed(KEY_SPACE) && plr.iscolliding == true) {
-            plr.iscolliding = false;
-            plr.isjumping = true;
-            plr.vy = -400.0;
-        }
-        if (!candash && (GetTime() - dashtime >= dashcd)) {
-            candash = true;
-        }
-        if (IsKeyPressed(KEY_R)) {
-            if (candash) {
-                candash = false;
-                dashtime = GetTime();
-                if (isfacingright == true) {
-                    if (rightDashCheck(&plr)) {
-                        plr.pos.x = plr.dashhitbox.x;
-                        plr.vy = 0;
-                        plr.hitbox.y = plr.pos.y;
-                        plr.hitbox.x = plr.pos.x;
-                    } else {
-                        plr.pos.x = plr.dashhitbox.x;
-                        plr.vy = 0;
-                        plr.hitbox.y = plr.pos.y;
-                        plr.hitbox.x = plr.pos.x;
-                    }
-                } else if (isfacingright == false) {
-                    if (leftDashCheck(&plr)) {
-                        plr.pos.x = plr.dashhitbox.x;
-                        plr.vy = 0;
-                        plr.hitbox.y = plr.pos.y;
-                        plr.hitbox.x = plr.pos.x;
-                    } else {
-                        plr.pos.x = plr.dashhitbox.x;
-                        plr.vy = 0;
-                        plr.hitbox.y = plr.pos.y;
-                        plr.hitbox.x = plr.pos.x;
+        if (isPlayTesting || isplaying) {
+            if (IsKeyDown(KEY_A)) {
+                plr.vx = -1;
+                plr.pos.x -= 4;
+                plr.hitbox.x = plr.pos.x;
+                plr.hitbox.y = plr.pos.y;
+                isfacingright = false;
+            }
+            if (IsKeyDown(KEY_D)) {
+                plr.vx = 1;
+                plr.pos.x += 4;
+                plr.hitbox.x = plr.pos.x;
+                plr.hitbox.y = plr.pos.y;
+                isfacingright = true;
+            }
+            if (IsKeyUp(KEY_A) && IsKeyUp(KEY_D)) {
+                plr.vx = 0;
+                plr.hitbox.x = plr.pos.x;
+                plr.hitbox.y = plr.pos.y;
+            }
+            if (IsKeyPressed(KEY_P)) {
+                objectPlaceID = 0;
+            }
+            if (IsKeyPressed(KEY_O)) {
+                objectPlaceID = 1;
+            }
+            if (IsKeyPressed(KEY_SPACE) && plr.iscolliding == true) {
+                plr.iscolliding = false;
+                plr.isjumping = true;
+                plr.vy = -400.0;
+            }
+            if (!candash && (GetTime() - dashtime >= dashcd)) {
+                candash = true;
+            }
+            if (IsKeyPressed(KEY_R)) {
+                if (candash) {
+                    candash = false;
+                    dashtime = GetTime();
+                    if (isfacingright == true) {
+                        if (rightDashCheck(&plr)) {
+                            plr.pos.x = plr.dashhitbox.x;
+                            plr.vy = 0;
+                            plr.hitbox.y = plr.pos.y;
+                            plr.hitbox.x = plr.pos.x;
+                        } else {
+                            plr.pos.x = plr.dashhitbox.x;
+                            plr.vy = 0;
+                            plr.hitbox.y = plr.pos.y;
+                            plr.hitbox.x = plr.pos.x;
+                        }
+                    } else if (isfacingright == false) {
+                        if (leftDashCheck(&plr)) {
+                            plr.pos.x = plr.dashhitbox.x;
+                            plr.vy = 0;
+                            plr.hitbox.y = plr.pos.y;
+                            plr.hitbox.x = plr.pos.x;
+                        } else {
+                            plr.pos.x = plr.dashhitbox.x;
+                            plr.vy = 0;
+                            plr.hitbox.y = plr.pos.y;
+                            plr.hitbox.x = plr.pos.x;
+                        }
                     }
                 }
             }
@@ -362,34 +406,38 @@ int main(void) {
         
         
         objectCount = spikeCount + groundCount;
-        if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && objectCount <= 40000) {
-            Vector2 pos = GetMousePosition();
-            pos.x = round60(pos.x);
-            pos.y = round60(pos.y);
-            if (objectPlaceID == 0) {
+        if (inEditor) {
+            isPlayTesting = true;
+            if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && objectCount <= 40000) {
+                Vector2 pos = GetMousePosition();
+                pos.x = round60(pos.x);
+                pos.y = round60(pos.y);
+                if (objectPlaceID == 0) {
+                
+                    spike* newSpike = NewSpike(&spik, spikeCount);
+                
+                    // Customize new spike's position & size to default
+                    newSpike->pos = pos;
+                    newSpike->size = (Vector2){ 60, 60 };
+                    newSpike->hitbox = (Rectangle){ pos.x + newSpike->size.x * 0.375, pos.y + newSpike->size.y * 0.375, newSpike->size.x / 4, newSpike->size.y / 4 };
+                    newSpike->texture = &spikeTex;
             
-                spike* newSpike = NewSpike(&spik, spikeCount);
+                    spikeList[spikeCount++] = newSpike;
+                } else if (objectPlaceID == 1) {
+    
+                    ground* newGround = NewGround(&groond, groundCount);
+                
+                    // Customize new ground's position & size to default
+                    newGround->pos = pos;
+                    newGround->size = (Vector2){ 60, 60 };
+                    newGround->hitbox = (Rectangle){ pos.x, pos.y, newGround->size.x, newGround->size.y };
+                    newGround->texture = &groundTex;
             
-                // Customize new spike's position & size to default
-                newSpike->pos = pos;
-                newSpike->size = (Vector2){ 60, 60 };
-                newSpike->hitbox = (Rectangle){ pos.x + newSpike->size.x * 0.375, pos.y + newSpike->size.y * 0.375, newSpike->size.x / 4, newSpike->size.y / 4 };
-                newSpike->texture = &spikeTex;
-        
-                spikeList[spikeCount++] = newSpike;
-            } else if (objectPlaceID == 1) {
-
-                ground* newGround = NewGround(&groond, groundCount);
-            
-                // Customize new ground's position & size to default
-                newGround->pos = pos;
-                newGround->size = (Vector2){ 60, 60 };
-                newGround->hitbox = (Rectangle){ pos.x, pos.y, newGround->size.x, newGround->size.y };
-                newGround->texture = &groundTex;
-        
-                groundList[groundCount++] = newGround;
+                    groundList[groundCount++] = newGround;
+                }
             }
         }
+        
 
         // Update hitbox after horizontal move
         plr.hitbox.x = plr.pos.x;
@@ -424,8 +472,10 @@ int main(void) {
         }
 
         // ---- Vertical movement & collision
-        plr.vy += gravity * dt;
-        plr.pos.y += plr.vy * dt;
+        if (isPlayTesting || isplaying) {
+            plr.vy += gravity * dt;
+            plr.pos.y += plr.vy * dt;
+        }
 
         // Update hitbox again after vertical move
         plr.hitbox.x = plr.pos.x;
@@ -487,10 +537,23 @@ int main(void) {
         BeginTextureMode(target);
         ClearBackground(DARKBLUE);
 
-        DrawText("A & D to move the doge", 10, 10, 20, RAYWHITE);
-        DrawPlayer(plr);
-        DrawHairry(firsthairry);
-        DrawSpike(spik);
+        if (inMainMenu && !inEditor && !inEditorPauseMenu) {
+            DrawText("Dogeia", GAME_WIDTH / 2, 300, 100, RAYWHITE);
+            DrawText(">", GAME_WIDTH / 2, 450, 50, RAYWHITE);
+            DrawText("#", GAME_WIDTH / 2, 600, 50, RAYWHITE);
+            unloadlevel();
+            if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
+                if (CheckCollisionPointRec(worldMouse, editorEnterHitbox)) {
+                    inMainMenu = false;
+                    inEditor = true;
+                }
+            }
+        }
+
+        if (isplaying || isPlayTesting) {
+            DrawPlayer(plr);
+        }
+
         for (int i = 0; i < spikeCount; i++) {
             DrawSpike(*spikeList[i]);
         }
@@ -529,14 +592,7 @@ int main(void) {
             0.0f,
             WHITE
         );
-
         EndDrawing();
-        Vector2 mouse = GetMousePosition();
-
-        Vector2 worldMouse = {
-            (mouse.x - offsetX) / scale,
-            (mouse.y - offsetY) / scale
-        };
 
         // check delete spikes
         for (int i = 0; i < spikeCount; i++) {
