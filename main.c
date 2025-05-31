@@ -14,7 +14,8 @@
 typedef enum {
     GROUND,
     ENTITY_ENEMY_HAIRRY,
-    HAZARD_SPIKE
+    HAZARD_SPIKE,
+    SPRING
 } EntityType;
 
 // "blueprint" for hairry enemy
@@ -68,6 +69,15 @@ typedef struct ground {
     EntityType type;
 } ground;
 
+typedef struct spring {
+    Vector2 pos;
+    Vector2 size;
+    int id;
+    Rectangle hitbox;
+    Texture2D* texture;
+    EntityType type;
+} spring;
+
 void DrawHairry(hairry h) {
     DrawCircleV(h.pos, h.size, BLACK);
 }
@@ -87,6 +97,13 @@ void DrawSpike(spike rect) {
 }
 
 void DrawGround(ground rect) {
+    Rectangle source = { 0, 0, rect.texture->width, rect.texture->height };
+    Rectangle dest = { rect.pos.x, rect.pos.y, rect.size.x, rect.size.y };
+    Vector2 origin = { 0, 0 };
+    DrawTexturePro(*rect.texture, source, dest, origin, 0.0f, WHITE);
+}
+
+void DrawSpring(spring rect) {
     Rectangle source = { 0, 0, rect.texture->width, rect.texture->height };
     Rectangle dest = { rect.pos.x, rect.pos.y, rect.size.x, rect.size.y };
     Vector2 origin = { 0, 0 };
@@ -128,6 +145,27 @@ ground* CloneGround(const ground* blueprint, int new_id) {
     };
 }
 
+spring* CloneSpring(const spring* blueprint, int new_id) {
+    return &(spring){
+        .id = new_id,
+        .texture = blueprint->texture,
+        .pos = blueprint->pos,
+        .hitbox = (Rectangle){
+            blueprint->pos.x,
+            blueprint->pos.y,
+            blueprint->hitbox.width,
+            blueprint->hitbox.height
+        }
+    };
+}
+
+spring* NewSpring(const spring* blueprint, int id) {
+    spring* s = malloc(sizeof(spring));
+    if (!s) return NULL;
+    *s = *CloneSpring(blueprint, id);  // copy the clean temp struct
+    return s;
+}
+
 ground* NewGround(const ground* blueprint, int id) {
     ground* s = malloc(sizeof(ground));
     if (!s) return NULL;
@@ -153,6 +191,9 @@ int spikeCount = 0;
 ground* groundList[40000]; // array of ground pointers
 int groundCount = 0;
 
+spring* springList[40000];
+int springCount = 0;
+
 // update this whenever i add a new block that can be collided with (this function is for right-facing dashes)
 bool rightDashCheck(player *plr) {
     bool shoulddash = false;
@@ -173,6 +214,14 @@ bool rightDashCheck(player *plr) {
         for (int i = 0; i < groundCount; i++) {
             if (CheckCollisionRecs(plr->dashhitbox, groundList[i]->hitbox)) {    
                 plr->dashhitbox.x = groundList[i]->hitbox.x - plr->size.x;
+                shoulddash = true; 
+                goto what;
+            }
+        }
+
+        for (int i = 0; i < springCount; i++) {
+            if (CheckCollisionRecs(plr->dashhitbox, springList[i]->hitbox)) {    
+                plr->dashhitbox.x = springList[i]->hitbox.x - plr->size.x;
                 shoulddash = true; 
                 goto what;
             }
@@ -209,6 +258,14 @@ bool leftDashCheck(player *plr) {
                 goto what;
             }
         }
+
+        for (int i = 0; i < springCount; i++) {
+            if (CheckCollisionRecs(plr->dashhitbox, springList[i]->hitbox)) {
+                plr->dashhitbox.x = springList[i]->hitbox.x + springList[i]->hitbox.width;
+                shoulddash = true;
+                goto what;
+            }
+        }
     }
     what:
         plr->dashhitbox.x = plr->dashhitbox.x;
@@ -222,6 +279,9 @@ void unloadlevel() {
     }
     for (int i = 0; i < groundCount; i++) {
         free(groundList[i]);
+    }
+    for (int i = 0; i < springCount; i++) {
+        free(springList[i]);
     }
 }
 
@@ -240,16 +300,20 @@ int objectPlaceID = 0; // just lets the game know what object you wanna place do
 
 float gravity = 1000.0f;
 
+// variables used when you die
 bool showDeathBox = false;
 float deathBoxDuration = 2.5f;
 float deathTime = 0.0f;
 bool tele = false;
+
+// variables used in dash mechanic
 bool isfacingright = true;
 float dashcd = 0.5f;
 float dashtime = 0.0f;
 bool candash = true;
 
-Rectangle editorEnterHitbox = (Rectangle){GAME_WIDTH / 2, 600, 50, 50};
+Rectangle editorEnterHitbox = (Rectangle){GAME_WIDTH / 2, 600, 50, 50}; // hitbox in main menu to open editor
+Rectangle editorPauseMenuEnterHitbox = (Rectangle){70, 70, 60, 60}; // hitbox in editor to access pause menu
 
 int main(void) {
     hairry firsthairry;
@@ -311,6 +375,16 @@ int main(void) {
     groond.texture = &groundTex;
     groond.type = GROUND;
 
+    spring sprin;
+    sprin.pos.x = 0;
+    sprin.pos.y = 0;
+    sprin.size.x = 60;
+    sprin.size.y = 60;
+    sprin.hitbox = (Rectangle){sprin.pos.x, sprin.pos.y, sprin.size.x, sprin.size.y};
+    Texture2D springTex = LoadTexture("Spring.png");
+    sprin.texture = &springTex;
+    sprin.type = SPRING;
+
     while (!WindowShouldClose()) {
         float dt = GetFrameTime();
 
@@ -363,6 +437,9 @@ int main(void) {
             if (IsKeyPressed(KEY_O)) {
                 objectPlaceID = 1;
             }
+            if (IsKeyPressed(KEY_I)) {
+                objectPlaceID = 2;
+            }
             if (IsKeyPressed(KEY_SPACE) && plr.iscolliding == true) {
                 plr.iscolliding = false;
                 plr.isjumping = true;
@@ -405,7 +482,7 @@ int main(void) {
         }
         
         
-        objectCount = spikeCount + groundCount;
+        objectCount = spikeCount + groundCount + springCount;
         if (inEditor) {
             isPlayTesting = true;
             if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && objectCount <= 40000) {
@@ -434,7 +511,27 @@ int main(void) {
                     newGround->texture = &groundTex;
             
                     groundList[groundCount++] = newGround;
+                } else if (objectPlaceID == 2) {
+    
+                    spring* newSpring = NewSpring(&sprin, springCount);
+                
+                    // Customize new ground's position & size to default
+                    newSpring->pos = pos;
+                    newSpring->size = (Vector2){ 60, 60 };
+                    newSpring->hitbox = (Rectangle){ pos.x, pos.y, newSpring->size.x, newSpring->size.y };
+                    newSpring->texture = &springTex;
+            
+                    springList[springCount++] = newSpring;
                 }
+            }
+        }
+
+        if (inEditor && !inMainMenu || isplaying && !inMainMenu || isPlayTesting && !inMainMenu) {
+            if (IsKeyPressed(KEY_B)) {
+                inEditor = false;
+                isplaying = false;
+                isPlayTesting = false;
+                inMainMenu = true;
             }
         }
         
@@ -465,6 +562,19 @@ int main(void) {
                 plr.pos.x = groundList[i]->hitbox.x - plr.size.x;
                 } else if (plr.vx < 0) {
                 plr.pos.x = groundList[i]->hitbox.x + groundList[i]->hitbox.width;
+                }
+                plr.vx = 0;
+                plr.hitbox.x = plr.pos.x;
+            }
+        }
+
+        // horizontal collision with spring
+        for (int i = 0; i < springCount; i++) {
+            if (CheckCollisionRecs(plr.hitbox, springList[i]->hitbox)) {
+                if (plr.vx > 0) {
+                    plr.pos.x = springList[i]->hitbox.x - plr.size.x;
+                } else if (plr.vx < 0) {
+                    plr.pos.x = springList[i]->hitbox.x + springList[i]->hitbox.width;
                 }
                 plr.vx = 0;
                 plr.hitbox.x = plr.pos.x;
@@ -518,6 +628,25 @@ int main(void) {
             }
         }
 
+        // vertical collision with spring
+        for (int i = 0; i < springCount; i++) {
+            if (CheckCollisionRecs(plr.hitbox, springList[i]->hitbox)) {
+                if (plr.vy > 0) {
+                // Falling down
+                plr.pos.y = springList[i]->hitbox.y - plr.size.y;
+                plr.isfalling = false;
+                plr.iscolliding = true;
+                plr.vy = -700.0;
+            } else if (plr.vy < 0) {
+                // Jumping up into spike
+                plr.pos.y = springList[i]->hitbox.y + springList[i]->hitbox.height;
+                plr.iscolliding = false;
+                plr.vy = 700.0;
+            }
+            plr.hitbox.y = plr.pos.y;
+            }
+        }
+
         // check if it's time to get rid of death message
         if (showDeathBox && (GetTime() - deathTime >= deathBoxDuration)) {
             showDeathBox = false;
@@ -537,19 +666,6 @@ int main(void) {
         BeginTextureMode(target);
         ClearBackground(DARKBLUE);
 
-        if (inMainMenu && !inEditor && !inEditorPauseMenu) {
-            DrawText("Dogeia", GAME_WIDTH / 2, 300, 100, RAYWHITE);
-            DrawText(">", GAME_WIDTH / 2, 450, 50, RAYWHITE);
-            DrawText("#", GAME_WIDTH / 2, 600, 50, RAYWHITE);
-            unloadlevel();
-            if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
-                if (CheckCollisionPointRec(worldMouse, editorEnterHitbox)) {
-                    inMainMenu = false;
-                    inEditor = true;
-                }
-            }
-        }
-
         if (isplaying || isPlayTesting) {
             DrawPlayer(plr);
         }
@@ -560,8 +676,26 @@ int main(void) {
         for (int i = 0; i < groundCount; i++) {
             DrawGround(*groundList[i]);
         }
+        for (int i = 0; i < springCount; i++) {
+            DrawSpring(*springList[i]);
+        }
         if (showDeathBox) {
             DrawText("You died...", 960, 540, 20, RAYWHITE);
+        }
+
+        if (inMainMenu && !inEditor && !inEditorPauseMenu) {
+            DrawText("Dogeia", GAME_WIDTH / 2, 300, 100, RAYWHITE);
+            DrawText(">", GAME_WIDTH / 2, 450, 50, RAYWHITE);
+            DrawText("#", GAME_WIDTH / 2, 600, 50, RAYWHITE);
+            plr.pos.y = 100;
+            plr.pos.x = 400;
+            plr.vy = 0;
+            if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
+                if (CheckCollisionPointRec(worldMouse, editorEnterHitbox)) {
+                    inMainMenu = false;
+                    inEditor = true;
+                }
+            }
         }
 
         EndTextureMode();
@@ -632,6 +766,25 @@ int main(void) {
             }
         }
 
+        // check delete spring
+        for (int i = 0; i < springCount; i++) {
+            if (springList[i] && CheckCollisionPointRec(worldMouse, springList[i]->hitbox)) {
+                // if right mousebutton
+                if (IsMouseButtonPressed(MOUSE_RIGHT_BUTTON)) {
+                    int springid = springList[i]->id;
+                    free(springList[i]);
+                    for (int j = springid; j < springCount - 1; j++) {
+                        springList[j] = springList[j + 1];
+                    }
+                    springList[springCount - 1] = NULL;
+                    springCount--;
+                    for (int k = springid; k < springCount; k++) {
+                        springList[k]->id = k;
+                    }
+                }
+            }
+        }
+
         if (plr.health == 0 && !showDeathBox) {
             showDeathBox = true;
             deathTime = GetTime();
@@ -641,13 +794,7 @@ int main(void) {
         }
         
     }
-
-    for (int i = 0; i < spikeCount; i++) {
-        free(spikeList[i]);
-    }
-    for (int i = 0; i < groundCount; i++) {
-        free(groundList[i]);
-    }
+    unloadlevel();
     UnloadTexture(groundTex);
     UnloadTexture(spikeTex);
     UnloadTexture(plr.texture);
