@@ -78,6 +78,24 @@ typedef struct spring {
     EntityType type;
 } spring;
 
+typedef struct groundpillar {
+	Vector2 pos;
+	Vector2 size;
+	int id;
+	Rectangle hitbox;
+	Texture2D* texture;
+	EntityType type;
+} groundpillar;
+
+typedef struct groundpillartop {
+	Vector2 pos;
+	Vector2 size;
+	int id;
+	Rectangle hitbox;
+	Texture2D* texture;
+	EntityType type;
+} groundpillartop;
+
 void DrawHairry(hairry h) {
     DrawCircleV(h.pos, h.size, BLACK);
 }
@@ -110,8 +128,22 @@ void DrawSpring(spring rect) {
     DrawTexturePro(*rect.texture, source, dest, origin, 0.0f, WHITE);
 }
 
+void DrawGroundPillar(groundpillar rect) {
+    Rectangle source = { 0, 0, rect.texture->width, rect.texture->height };
+    Rectangle dest = { rect.pos.x, rect.pos.y, rect.size.x, rect.size.y };
+    Vector2 origin = { 0, 0 };
+    DrawTexturePro(*rect.texture, source, dest, origin, 0.0f, WHITE);
+}
+
+void DrawGroundPillarTop(groundpillartop rect) {
+    Rectangle source = { 0, 0, rect.texture->width, rect.texture->height };
+    Rectangle dest = { rect.pos.x, rect.pos.y, rect.size.x, rect.size.y };
+    Vector2 origin = { 0, 0 };
+    DrawTexturePro(*rect.texture, source, dest, origin, 0.0f, WHITE);
+}
+
 spike* CloneSpike(const spike* blueprint, int new_id) {
-    return &(spike){
+	return &(spike){
         .id = new_id,
         .texture = blueprint->texture,
         .pos = blueprint->pos,
@@ -130,6 +162,50 @@ spike* NewSpike(const spike* blueprint, int id) {
     *s = *CloneSpike(blueprint, id);  // copy the clean temp struct
     return s;
 }
+
+groundpillar* CloneGroundPillar(const groundpillar* blueprint, int new_id) {
+	return &(groundpillar){
+        .id = new_id,
+        .texture = blueprint->texture,
+        .pos = blueprint->pos,
+        .hitbox = (Rectangle){
+            blueprint->pos.x,
+            blueprint->pos.y,
+            blueprint->hitbox.width,
+            blueprint->hitbox.height
+        }
+    };
+}
+
+
+groundpillar* NewGroundPillar(const groundpillar* blueprint, int id) {
+    groundpillar* s = malloc(sizeof(groundpillar));
+    if (!s) return NULL;
+    *s = *CloneGroundPillar(blueprint, id);  // copy the clean temp struct
+    return s;
+}
+
+groundpillartop* CloneGroundPillarTop(const groundpillartop* blueprint, int new_id) {
+	return &(groundpillartop){
+        .id = new_id,
+        .texture = blueprint->texture,
+        .pos = blueprint->pos,
+        .hitbox = (Rectangle){
+            blueprint->pos.x,
+            blueprint->pos.y,
+            blueprint->hitbox.width,
+            blueprint->hitbox.height
+        }
+    };
+}
+
+groundpillartop* NewGroundPillarTop(const groundpillartop* blueprint, int id) {
+    groundpillartop* s = malloc(sizeof(groundpillartop));
+    if (!s) return NULL;
+    *s = *CloneGroundPillarTop(blueprint, id);  // copy the clean temp struct
+    return s;
+}
+
 
 ground* CloneGround(const ground* blueprint, int new_id) {
     return &(ground){
@@ -191,8 +267,14 @@ int spikeCount = 0;
 ground* groundList[40000]; // array of ground pointers
 int groundCount = 0;
 
-spring* springList[40000];
+spring* springList[40000]; // array of spring pointers
 int springCount = 0;
+
+groundpillar* groundpillarList[40000]; // array of groundpillar pointers
+int groundpillarCount = 0;
+
+groundpillartop* groundpillartopList[40000]; // array of groundpillartop pointers
+int groundpillartopCount = 0;
 
 // update this whenever i add a new block that can be collided with (this function is for right-facing dashes)
 bool rightDashCheck(player *plr) {
@@ -226,6 +308,24 @@ bool rightDashCheck(player *plr) {
                 goto what;
             }
         }
+
+	for (int i = 0; i < groundpillarCount; i++) {
+            if (CheckCollisionRecs(plr->dashhitbox, groundpillarList[i]->hitbox)) {    
+                plr->dashhitbox.x = groundpillarList[i]->hitbox.x - plr->size.x;
+                shoulddash = true; 
+                goto what;
+            }
+        }
+
+	for (int i = 0; i < groundpillartopCount; i++) {
+            if (CheckCollisionRecs(plr->dashhitbox, groundpillartopList[i]->hitbox)) {    
+                plr->dashhitbox.x = groundpillartopList[i]->hitbox.x - plr->size.x;
+                shoulddash = true; 
+                goto what;
+            }
+        }
+
+
     }
     what:
         plr->pos.x = plr->dashhitbox.x;
@@ -266,6 +366,23 @@ bool leftDashCheck(player *plr) {
                 goto what;
             }
         }
+
+	for (int i = 0; i < groundpillarCount; i++) {
+            if (CheckCollisionRecs(plr->dashhitbox, groundpillarList[i]->hitbox)) {    
+                plr->dashhitbox.x = groundpillarList[i]->hitbox.x + plr->size.x;
+                shoulddash = true; 
+                goto what;
+            }
+        }
+
+	for (int i = 0; i < groundpillartopCount; i++) {
+            if (CheckCollisionRecs(plr->dashhitbox, groundpillartopList[i]->hitbox)) {    
+                plr->dashhitbox.x = groundpillartopList[i]->hitbox.x + plr->size.x;
+                shoulddash = true; 
+                goto what;
+            }
+        }
+
     }
     what:
         plr->dashhitbox.x = plr->dashhitbox.x;
@@ -283,6 +400,13 @@ void unloadlevel() {
     for (int i = 0; i < springCount; i++) {
         free(springList[i]);
     }
+    for (int i = 0; i < groundpillarCount; i++) {
+        free(groundpillarList[i]);
+    }
+    for (int i = 0; i < groundpillartopCount; i++) {
+	free(groundpillartopList[i]);
+    }
+
 }
 
 // menu nav bools
@@ -297,6 +421,8 @@ bool isplaying = false;
 // object collision checking variables
 bool isCollidingSpring = false;
 bool isCollidingGround = false;
+bool isCollidingGroundPillar = false;
+bool isCollidingGroundPillarTop = false;
 
 int objectCount = 0; // object count is all the sum of all the blocks that are placed down and is used to limit on how big levels can be (in a file sense and in a physical sense)
 
@@ -389,6 +515,26 @@ int main(void) {
     sprin.texture = &springTex;
     sprin.type = SPRING;
 
+    groundpillar groondpillar;
+    groondpillar.pos.x = 0;
+    groondpillar.pos.y = 0;
+    groondpillar.size.x = 60;
+    groondpillar.size.y = 60;
+    groondpillar.hitbox = (Rectangle){groondpillar.pos.x, groondpillar.pos.y, groondpillar.size.x, groondpillar.size.y};
+    Texture2D groundPillarTex = LoadTexture("GroundPillar.png");
+    groondpillar.texture = &groundPillarTex;
+    groondpillar.type = GROUND;
+
+    groundpillartop groondpillartop;
+    groondpillartop.pos.x = 0;
+    groondpillartop.pos.y = 0;
+    groondpillartop.size.x = 60;
+    groondpillartop.size.y = 60;
+    groondpillartop.hitbox = (Rectangle){groondpillartop.pos.x, groondpillartop.pos.y, groondpillartop.size.x, groondpillartop.size.y};
+    Texture2D groundPillarTopTex = LoadTexture("GroundPillarTop.png");
+    groondpillartop.texture = &groundPillarTopTex;
+    groondpillartop.type = GROUND;
+
     while (!WindowShouldClose()) {
         float dt = GetFrameTime();
 
@@ -444,7 +590,13 @@ int main(void) {
             if (IsKeyPressed(KEY_I)) {
                 objectPlaceID = 2;
             }
-            if (IsKeyPressed(KEY_SPACE) && isCollidingGround == true || IsKeyPressed(KEY_SPACE) && isCollidingSpring) {
+	    if (IsKeyPressed(KEY_U)) {
+	    	objectPlaceID = 3;
+	    }
+	    if (IsKeyPressed(KEY_Y)) {
+	    	objectPlaceID = 4;
+	    }
+            if (IsKeyPressed(KEY_SPACE) && isCollidingGround == true || IsKeyPressed(KEY_SPACE) && isCollidingSpring || IsKeyPressed(KEY_SPACE) && isCollidingGroundPillar || IsKeyPressed(KEY_SPACE) && isCollidingGroundPillarTop) {
                 plr.iscolliding = false;
                 plr.isjumping = true;
                 plr.vy = -400.0;
@@ -526,7 +678,31 @@ int main(void) {
                     newSpring->texture = &springTex;
             
                     springList[springCount++] = newSpring;
+                } else if (objectPlaceID == 3) {
+    
+                    groundpillar* newGroundPillar = NewGroundPillar(&groondpillar, groundpillarCount);
+                
+                    // Customize new ground's position & size to default
+                    newGroundPillar->pos = pos;
+                    newGroundPillar->size = (Vector2){ 60, 60 };
+                    newGroundPillar->hitbox = (Rectangle){ pos.x, pos.y, newGroundPillar->size.x, newGroundPillar->size.y };
+                    newGroundPillar->texture = &groundPillarTex;
+            
+                    groundpillarList[groundpillarCount++] = newGroundPillar;
+                } else if (objectPlaceID == 4) {
+    
+                    groundpillartop* newGroundPillarTop = NewGroundPillarTop(&groondpillartop, groundpillartopCount);
+                
+                    // Customize new ground's position & size to default
+                    newGroundPillarTop->pos = pos;
+                    newGroundPillarTop->size = (Vector2){ 60, 60 };
+                    newGroundPillarTop->hitbox = (Rectangle){ pos.x, pos.y, newGroundPillarTop->size.x, newGroundPillarTop->size.y };
+                    newGroundPillarTop->texture = &groundPillarTopTex;
+            
+                    groundpillartopList[groundpillartopCount++] = newGroundPillarTop;
                 }
+
+
             }
         }
 
@@ -541,6 +717,8 @@ int main(void) {
 
         isCollidingGround = false;
         isCollidingSpring = false;
+	isCollidingGroundPillar = false;
+	isCollidingGroundPillarTop = false;
 
         // Update hitbox after horizontal move
         plr.hitbox.x = plr.pos.x;
@@ -586,6 +764,34 @@ int main(void) {
                 plr.hitbox.x = plr.pos.x;
             }
         }
+
+	// horizontal collision with groundpillar
+        for (int i = 0; i < groundpillarCount; i++) {
+            if (CheckCollisionRecs(plr.hitbox, groundpillarList[i]->hitbox)) {
+                if (plr.vx > 0) {
+                plr.pos.x = groundpillarList[i]->hitbox.x - plr.size.x;
+                } else if (plr.vx < 0) {
+                plr.pos.x = groundpillarList[i]->hitbox.x + groundpillarList[i]->hitbox.width;
+                }
+                plr.vx = 0;
+                plr.hitbox.x = plr.pos.x;
+            }
+        }
+
+	// horizontal collision with groundpillar
+        for (int i = 0; i < groundpillartopCount; i++) {
+            if (CheckCollisionRecs(plr.hitbox, groundpillartopList[i]->hitbox)) {
+                if (plr.vx > 0) {
+                plr.pos.x = groundpillartopList[i]->hitbox.x - plr.size.x;
+                } else if (plr.vx < 0) {
+                plr.pos.x = groundpillartopList[i]->hitbox.x + groundpillartopList[i]->hitbox.width;
+                }
+                plr.vx = 0;
+                plr.hitbox.x = plr.pos.x;
+            }
+        }
+
+
 
         // ---- Vertical movement & collision
         if (isPlayTesting || isplaying) {
@@ -653,6 +859,43 @@ int main(void) {
             }
         }
 
+	// vertical collision with groundpillar
+        for (int i = 0; i < groundpillarCount; i++) {
+            if (CheckCollisionRecs(plr.hitbox, groundpillarList[i]->hitbox)) {
+                if (plr.vy > 0) {
+                // Falling down
+                plr.pos.y = groundpillarList[i]->hitbox.y - plr.size.y;
+                plr.isfalling = false;
+               isCollidingGroundPillar = true;
+            } else if (plr.vy < 0) {
+                // Jumping up into spike
+                plr.pos.y = groundpillarList[i]->hitbox.y + groundpillarList[i]->hitbox.height;
+                plr.iscolliding = false;
+            }
+            plr.vy = 0;
+            plr.hitbox.y = plr.pos.y;
+            }
+        }
+
+	// vertical collision with groundpillartop
+        for (int i = 0; i < groundpillartopCount; i++) {
+            if (CheckCollisionRecs(plr.hitbox, groundpillartopList[i]->hitbox)) {
+                if (plr.vy > 0) {
+                // Falling down
+                plr.pos.y = groundpillartopList[i]->hitbox.y - plr.size.y;
+                plr.isfalling = false;
+               isCollidingGroundPillarTop = true;
+            } else if (plr.vy < 0) {
+                // Jumping up into spike
+                plr.pos.y = groundpillartopList[i]->hitbox.y + groundpillartopList[i]->hitbox.height;
+                plr.iscolliding = false;
+            }
+            plr.vy = 0;
+            plr.hitbox.y = plr.pos.y;
+            }
+        }
+
+
         // check if it's time to get rid of death message
         if (showDeathBox && (GetTime() - deathTime >= deathBoxDuration)) {
             showDeathBox = false;
@@ -685,6 +928,13 @@ int main(void) {
         for (int i = 0; i < springCount; i++) {
             DrawSpring(*springList[i]);
         }
+	for (int i = 0; i < groundpillarCount; i++) {
+	    DrawGroundPillar(*groundpillarList[i]);
+	}
+	for (int i = 0; i < groundpillartopCount; i++) {
+	    DrawGroundPillarTop(*groundpillartopList[i]);
+	}
+
         if (showDeathBox) {
             DrawText("You died...", 960, 540, 20, RAYWHITE);
         }
@@ -771,6 +1021,45 @@ int main(void) {
                 }
             }
         }
+
+	// check delete groundpillar
+        for (int i = 0; i < groundpillarCount; i++) {
+            if (groundpillarList[i] && CheckCollisionPointRec(worldMouse, groundpillarList[i]->hitbox)) {
+                // if right mousebutton
+                if (IsMouseButtonPressed(MOUSE_RIGHT_BUTTON)) {
+                    int groundpillarid = groundpillarList[i]->id;
+                    free(groundpillarList[i]);
+                    for (int j = groundpillarid; j < groundpillarCount - 1; j++) {
+                        groundpillarList[j] = groundpillarList[j + 1];
+                    }
+                    groundpillarList[groundpillarCount - 1] = NULL;
+                    groundpillarCount--;
+                    for (int k = groundpillarid; k < groundpillarCount; k++) {
+                        groundpillarList[k]->id = k;
+                    }
+                }
+            }
+        }
+
+	// check delete groundpillartop
+        for (int i = 0; i < groundpillartopCount; i++) {
+            if (groundpillartopList[i] && CheckCollisionPointRec(worldMouse, groundpillartopList[i]->hitbox)) {
+                // if right mousebutton
+                if (IsMouseButtonPressed(MOUSE_RIGHT_BUTTON)) {
+                    int groundpillartopid = groundpillartopList[i]->id;
+                    free(groundpillartopList[i]);
+                    for (int j = groundpillartopid; j < groundpillartopCount - 1; j++) {
+                        groundpillartopList[j] = groundpillartopList[j + 1];
+                    }
+                    groundpillartopList[groundpillartopCount - 1] = NULL;
+                    groundpillartopCount--;
+                    for (int k = groundpillartopid; k < groundpillartopCount; k++) {
+                        groundpillartopList[k]->id = k;
+                    }
+                }
+            }
+        }
+
 
         // check delete spring
         for (int i = 0; i < springCount; i++) {
