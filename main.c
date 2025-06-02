@@ -294,6 +294,10 @@ bool inEditorPauseMenu = false;
 bool isPlayTesting = false;
 bool isplaying = false;
 
+// object collision checking variables
+bool isCollidingSpring = false;
+bool isCollidingGround = false;
+
 int objectCount = 0; // object count is all the sum of all the blocks that are placed down and is used to limit on how big levels can be (in a file sense and in a physical sense)
 
 int objectPlaceID = 0; // just lets the game know what object you wanna place down, eg. 0 = a spike, 1 = ground
@@ -371,7 +375,7 @@ int main(void) {
     groond.size.x = 60;
     groond.size.y = 60;
     groond.hitbox = (Rectangle){groond.pos.x, groond.pos.y, groond.size.x, groond.size.y};
-    Texture2D groundTex = LoadTexture("Grassunf.png");
+    Texture2D groundTex = LoadTexture("Ground.png");
     groond.texture = &groundTex;
     groond.type = GROUND;
 
@@ -440,7 +444,7 @@ int main(void) {
             if (IsKeyPressed(KEY_I)) {
                 objectPlaceID = 2;
             }
-            if (IsKeyPressed(KEY_SPACE) && plr.iscolliding == true) {
+            if (IsKeyPressed(KEY_SPACE) && isCollidingGround == true || IsKeyPressed(KEY_SPACE) && isCollidingSpring) {
                 plr.iscolliding = false;
                 plr.isjumping = true;
                 plr.vy = -400.0;
@@ -534,7 +538,9 @@ int main(void) {
                 inMainMenu = true;
             }
         }
-        
+
+        isCollidingGround = false;
+        isCollidingSpring = false;
 
         // Update hitbox after horizontal move
         plr.hitbox.x = plr.pos.x;
@@ -617,7 +623,7 @@ int main(void) {
                 // Falling down
                 plr.pos.y = groundList[i]->hitbox.y - plr.size.y;
                 plr.isfalling = false;
-                plr.iscolliding = true;
+               isCollidingGround = true;
             } else if (plr.vy < 0) {
                 // Jumping up into spike
                 plr.pos.y = groundList[i]->hitbox.y + groundList[i]->hitbox.height;
@@ -635,7 +641,7 @@ int main(void) {
                 // Falling down
                 plr.pos.y = springList[i]->hitbox.y - plr.size.y;
                 plr.isfalling = false;
-                plr.iscolliding = true;
+                isCollidingSpring = true;
                 plr.vy = -700.0;
             } else if (plr.vy < 0) {
                 // Jumping up into spike
