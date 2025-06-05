@@ -424,6 +424,9 @@ bool isCollidingGround = false;
 bool isCollidingGroundPillar = false;
 bool isCollidingGroundPillarTop = false;
 
+// im too lazy to put these player stats in the struct
+float stamina = 100;
+
 int objectCount = 0; // object count is all the sum of all the blocks that are placed down and is used to limit on how big levels can be (in a file sense and in a physical sense)
 
 int objectPlaceID = 0; // just lets the game know what object you wanna place down, eg. 0 = a spike, 1 = ground
@@ -535,6 +538,8 @@ int main(void) {
     groondpillartop.texture = &groundPillarTopTex;
     groondpillartop.type = GROUND;
 
+    Texture2D staminaTex = LoadTexture("stamina.png");
+
     while (!WindowShouldClose()) {
         float dt = GetFrameTime();
 
@@ -604,8 +609,9 @@ int main(void) {
             if (!candash && (GetTime() - dashtime >= dashcd)) {
                 candash = true;
             }
-            if (IsKeyPressed(KEY_R)) {
+            if (IsKeyPressed(KEY_R) && stamina >= 30) {
                 if (candash) {
+		    stamina -= 30;
                     candash = false;
                     dashtime = GetTime();
                     if (isfacingright == true) {
@@ -793,10 +799,13 @@ int main(void) {
 
 
 
-        // ---- Vertical movement & collision
+        // ---- Vertical movement & collision & stamina regen
         if (isPlayTesting || isplaying) {
             plr.vy += gravity * dt;
             plr.pos.y += plr.vy * dt;
+	    if (stamina <= 100) {
+		stamina += 3.0f * dt;
+	    }
         }
 
         // Update hitbox again after vertical move
@@ -913,11 +922,7 @@ int main(void) {
 
         // actually begin drawing with good resolution
         BeginTextureMode(target);
-        ClearBackground(DARKBLUE);
-
-        if (isplaying || isPlayTesting) {
-            DrawPlayer(plr);
-        }
+        ClearBackground(BLUE);
 
         for (int i = 0; i < spikeCount; i++) {
             DrawSpike(*spikeList[i]);
@@ -939,6 +944,13 @@ int main(void) {
             DrawText("You died...", 960, 540, 20, RAYWHITE);
         }
 
+        if (isplaying || isPlayTesting) {
+            DrawPlayer(plr);
+	    DrawRectangle(20, 20, 300, 50, DARKPURPLE);
+	    DrawRectangle(20, 20, stamina * 3, 50, PURPLE);
+	    DrawTexture(staminaTex, 340, 20, PURPLE);
+        }
+
         if (inMainMenu && !inEditor && !inEditorPauseMenu) {
             DrawText("Dogeia", GAME_WIDTH / 2, 300, 100, RAYWHITE);
             DrawText(">", GAME_WIDTH / 2, 450, 50, RAYWHITE);
@@ -946,6 +958,7 @@ int main(void) {
             plr.pos.y = 100;
             plr.pos.x = 400;
             plr.vy = 0;
+	    stamina = 100;
             if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
                 if (CheckCollisionPointRec(worldMouse, editorEnterHitbox)) {
                     inMainMenu = false;
@@ -1090,6 +1103,7 @@ int main(void) {
         
     }
     unloadlevel();
+    UnloadTexture(staminaTex);
     UnloadTexture(groundTex);
     UnloadTexture(spikeTex);
     UnloadTexture(plr.texture);
