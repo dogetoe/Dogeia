@@ -21,10 +21,16 @@ typedef enum {
 // "blueprint" for hairry enemy
 typedef struct hairryblueprint {
     Vector2 pos;
-    int size;
+    Vector2 size;
     int health;
     int damage;
     int attackspeed;
+    bool isfacingright;
+    float vy;
+    float vx;
+    Texture2D* texture;
+    Rectangle hitbox;
+    int id;
     EntityType type;
 } hairry;
 
@@ -96,8 +102,12 @@ typedef struct groundpillartop {
 	EntityType type;
 } groundpillartop;
 
-void DrawHairry(hairry h) {
-    DrawCircleV(h.pos, h.size, BLACK);
+void DrawHairry(hairry rect) {
+    Rectangle source = { 0, 0, rect.texture->width, rect.texture->height };
+    Rectangle dest = { rect.pos.x, rect.pos.y, rect.size.x, rect.size.y };
+    Vector2 origin = { 0, 0 };
+    DrawTexturePro(*rect.texture, source, dest, origin, 0.0f, WHITE);
+
 }
 
 void DrawPlayer(player rect) {
@@ -162,6 +172,29 @@ spike* NewSpike(const spike* blueprint, int id) {
     *s = *CloneSpike(blueprint, id);  // copy the clean temp struct
     return s;
 }
+
+hairry* CloneHairry(const hairry* blueprint, int new_id) {
+	return &(hairry){
+        .id = new_id,
+        .texture = blueprint->texture,
+        .pos = blueprint->pos,
+        .hitbox = (Rectangle){
+            blueprint->pos.x,
+            blueprint->pos.y,
+            blueprint->hitbox.width,
+            blueprint->hitbox.height
+        }
+    };
+}
+
+hairry* NewHairry(const hairry* blueprint, int id) {
+    hairry* s = malloc(sizeof(hairry));
+    if (!s) return NULL;
+    *s = *CloneHairry(blueprint, id);  // copy the clean temp struct
+    return s;
+}
+
+
 
 groundpillar* CloneGroundPillar(const groundpillar* blueprint, int new_id) {
 	return &(groundpillar){
@@ -276,6 +309,9 @@ int groundpillarCount = 0;
 groundpillartop* groundpillartopList[40000]; // array of groundpillartop pointers
 int groundpillartopCount = 0;
 
+hairry* hairryList[40000]; // array of hairry pointers
+int hairryCount = 0;
+
 // update this whenever i add a new block that can be collided with (this function is for right-facing dashes)
 bool rightDashCheck(player *plr) {
     bool shoulddash = false;
@@ -325,6 +361,13 @@ bool rightDashCheck(player *plr) {
             }
         }
 
+
+	for (int i = 0; i < hairryCount; i++) {
+            if (CheckCollisionRecs(plr->dashhitbox, hairryList[i]->hitbox)) { 
+                plr->health -= 15;
+                shoulddash = true;
+            }
+        }
 
     }
     what:
@@ -383,6 +426,15 @@ bool leftDashCheck(player *plr) {
             }
         }
 
+
+	for (int i = 0; i < hairryCount; i++) {
+            if (CheckCollisionRecs(plr->dashhitbox, hairryList[i]->hitbox)) {
+                plr->health -= 15;
+                shoulddash = true;
+            }
+        }
+
+
     }
     what:
         plr->dashhitbox.x = plr->dashhitbox.x;
@@ -405,6 +457,9 @@ void unloadlevel() {
     }
     for (int i = 0; i < groundpillartopCount; i++) {
 	free(groundpillartopList[i]);
+    }
+    for (int i = 0; i < hairryCount; i++) {
+	free(hairryList[i]);
     }
 
 }
@@ -449,15 +504,6 @@ Rectangle editorEnterHitbox = (Rectangle){GAME_WIDTH / 2, 600, 50, 50}; // hitbo
 Rectangle editorPauseMenuEnterHitbox = (Rectangle){70, 70, 60, 60}; // hitbox in editor to access pause menu
 
 int main(void) {
-    hairry firsthairry;
-    firsthairry.pos.x = 600;
-    firsthairry.pos.y = 300;
-    firsthairry.size = 30;
-    firsthairry.health = 15;
-    firsthairry.damage = 3;
-    firsthairry.attackspeed = 1;
-    firsthairry.type = ENTITY_ENEMY_HAIRRY;
-
     SetConfigFlags(FLAG_FULLSCREEN_MODE);
     InitWindow(GAME_WIDTH, GAME_HEIGHT, "Dogeia");
     MaximizeWindow();
@@ -538,6 +584,22 @@ int main(void) {
     groondpillartop.texture = &groundPillarTopTex;
     groondpillartop.type = GROUND;
 
+    hairry hairy;
+    hairy.pos.x = 0;
+    hairy.pos.y = 0;
+    hairy.size.x = 60;
+    hairy.size.y = 60;
+    hairy.health = 30;
+    hairy.damage = 10;
+    hairy.isfacingright = false;
+    hairy.type = ENTITY_ENEMY_HAIRRY;
+    hairy.vx = -1;
+    hairy.vy = 0;
+    hairy.attackspeed = 2;
+    hairy.hitbox = (Rectangle){hairy.pos.x, hairy.pos.y, hairy.size.x, hairy.size.y};
+    Texture2D hairryTex =  LoadTexture("Hairry.png");
+    hairy.texture = &hairryTex;
+
     Texture2D staminaTex = LoadTexture("stamina.png");
 
     while (!WindowShouldClose()) {
@@ -601,6 +663,9 @@ int main(void) {
 	    if (IsKeyPressed(KEY_Y)) {
 	    	objectPlaceID = 4;
 	    }
+	    if (IsKeyPressed(KEY_T)) {
+		objectPlaceID = 5;
+	    }
             if (IsKeyPressed(KEY_SPACE) && isCollidingGround == true || IsKeyPressed(KEY_SPACE) && isCollidingSpring || IsKeyPressed(KEY_SPACE) && isCollidingGroundPillar || IsKeyPressed(KEY_SPACE) && isCollidingGroundPillarTop) {
                 plr.iscolliding = false;
                 plr.isjumping = true;
@@ -644,7 +709,7 @@ int main(void) {
         }
         
         
-        objectCount = spikeCount + groundCount + springCount;
+        objectCount = spikeCount + groundCount + springCount + groundpillarCount + groundpillartopCount + hairryCount;
         if (inEditor) {
             isPlayTesting = true;
             if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && objectCount <= 40000) {
@@ -671,7 +736,7 @@ int main(void) {
                     newGround->size = (Vector2){ 60, 60 };
                     newGround->hitbox = (Rectangle){ pos.x, pos.y, newGround->size.x, newGround->size.y };
                     newGround->texture = &groundTex;
-            
+
                     groundList[groundCount++] = newGround;
                 } else if (objectPlaceID == 2) {
     
@@ -706,6 +771,17 @@ int main(void) {
                     newGroundPillarTop->texture = &groundPillarTopTex;
             
                     groundpillartopList[groundpillartopCount++] = newGroundPillarTop;
+                } else if (objectPlaceID == 5) {
+    
+                    hairry* newHairry = NewHairry(&hairy, hairryCount);
+                
+                    // Customize new ground's position & size to default
+                    newHairry->pos = pos;
+                    newHairry->size = (Vector2){ 60, 60 };
+                    newHairry->hitbox = (Rectangle){ pos.x, pos.y, newHairry->size.x, newHairry->size.y };
+                    newHairry->texture = &hairryTex;
+            
+                    hairryList[hairryCount++] = newHairry;
                 }
 
 
@@ -803,8 +879,12 @@ int main(void) {
         if (isPlayTesting || isplaying) {
             plr.vy += gravity * dt;
             plr.pos.y += plr.vy * dt;
+	    for (int i = 0; i < hairryCount; i++) {
+	    	hairryList[i]->vy += gravity * dt;
+		hairryList[i]->pos.y += hairryList[i]->vy * dt;
+	    }
 	    if (stamina <= 100) {
-		stamina += 3.0f * dt;
+		stamina += 4.0f * dt;
 	    }
         }
 
@@ -939,7 +1019,9 @@ int main(void) {
 	for (int i = 0; i < groundpillartopCount; i++) {
 	    DrawGroundPillarTop(*groundpillartopList[i]);
 	}
-
+	for (int i = 0; i < hairryCount; i++) {
+	    DrawHairry(*hairryList[i]);
+	}
         if (showDeathBox) {
             DrawText("You died...", 960, 540, 20, RAYWHITE);
         }
@@ -1092,6 +1174,27 @@ int main(void) {
                 }
             }
         }
+
+
+	// check delete hairry
+        for (int i = 0; i < hairryCount; i++) {
+            if (hairryList[i] && CheckCollisionPointRec(worldMouse, hairryList[i]->hitbox)) {
+                // if right mousebutton
+                if (IsMouseButtonPressed(MOUSE_RIGHT_BUTTON)) {
+                    int hairryid = hairryList[i]->id;
+                    free(hairryList[i]);
+                    for (int j = hairryid; j < hairryCount - 1; j++) {
+                        hairryList[j] = hairryList[j + 1];
+                    }
+                    hairryList[hairryCount - 1] = NULL;
+                    hairryCount--;
+                    for (int k = hairryid; k < hairryCount; k++) {
+                        hairryList[k]->id = k;
+                    }
+                }
+            }
+        }
+
 
         if (plr.health == 0 && !showDeathBox) {
             showDeathBox = true;
