@@ -30,8 +30,10 @@ typedef struct hairryblueprint {
     float vx;
     Texture2D* texture;
     Rectangle hitbox;
+    Rectangle sighthitbox;
     int id;
     EntityType type;
+    bool insight;
 } hairry;
 
 // player struct
@@ -178,6 +180,9 @@ hairry* CloneHairry(const hairry* blueprint, int new_id) {
         .id = new_id,
         .texture = blueprint->texture,
         .pos = blueprint->pos,
+	.sighthitbox = (Rectangle){blueprint->pos.x, blueprint->pos.y, 300, blueprint->hitbox.height},
+	.isfacingright = blueprint->isfacingright,
+	.insight = blueprint->insight,
         .hitbox = (Rectangle){
             blueprint->pos.x,
             blueprint->pos.y,
@@ -311,6 +316,8 @@ int groundpillartopCount = 0;
 
 hairry* hairryList[40000]; // array of hairry pointers
 int hairryCount = 0;
+
+float t = 0.5;
 
 // update this whenever i add a new block that can be collided with (this function is for right-facing dashes)
 bool rightDashCheck(player *plr) {
@@ -500,6 +507,10 @@ float dashcd = 0.5f;
 float dashtime = 0.0f;
 bool candash = true;
 
+float hairryspeed = 3.0;
+
+float distancehp;
+
 Rectangle editorEnterHitbox = (Rectangle){GAME_WIDTH / 2, 600, 50, 50}; // hitbox in main menu to open editor
 Rectangle editorPauseMenuEnterHitbox = (Rectangle){70, 70, 60, 60}; // hitbox in editor to access pause menu
 
@@ -591,12 +602,13 @@ int main(void) {
     hairy.size.y = 60;
     hairy.health = 30;
     hairy.damage = 10;
-    hairy.isfacingright = false;
+    hairy.isfacingright = true;
     hairy.type = ENTITY_ENEMY_HAIRRY;
     hairy.vx = -1;
     hairy.vy = 0;
     hairy.attackspeed = 2;
     hairy.hitbox = (Rectangle){hairy.pos.x, hairy.pos.y, hairy.size.x, hairy.size.y};
+    hairy.sighthitbox = (Rectangle){hairy.pos.x, hairy.pos.y, 300, 60};
     Texture2D hairryTex =  LoadTexture("Hairry.png");
     hairy.texture = &hairryTex;
 
@@ -796,6 +808,41 @@ int main(void) {
                 inMainMenu = true;
             }
         }
+
+	t = 2.0 * dt;
+
+	for (int i = 0; i < hairryCount; i++) {
+	   if (!hairryList[i]->insight) {
+	       if (hairryList[i]->isfacingright) {
+		   hairryList[i]->isfacingright = false;
+	       } else if (!hairryList[i]->isfacingright) {
+		   hairryList[i]->isfacingright = true;
+	       }
+	   }
+	    
+	    if (hairryList[i]->isfacingright) {
+		hairryList[i]->sighthitbox.x = hairryList[i]->pos.x;
+		hairryList[i]->sighthitbox.y = hairryList[i]->pos.y;
+		hairryList[i]->sighthitbox.width = 300;
+		hairryList[i]->sighthitbox.height = hairryList[i]->size.y;
+	    } else if (!hairryList[i]->isfacingright) {
+		hairryList[i]->sighthitbox.x = hairryList[i]->pos.x - 240;
+		hairryList[i]->sighthitbox.y = hairryList[i]->pos.y;
+		hairryList[i]->sighthitbox.width = 300;
+		hairryList[i]->sighthitbox.height = hairryList[i]->size.y;
+	    }
+
+
+	    if (CheckCollisionRecs(plr.hitbox, hairryList[i]->sighthitbox) && hairryList[i]->isfacingright == true) {
+		hairryList[i]->pos.x += (plr.pos.x - hairryList[i]->pos.x) * t;
+		hairryList[i]->insight = true;
+	    } else if (CheckCollisionRecs(plr.hitbox, hairryList[i]->sighthitbox) && hairryList[i]->isfacingright == false) {
+		hairryList[i]->pos.x += (plr.pos.x - hairryList[i]->pos.x) * t;
+		hairryList[i]->insight = true;
+	    } else {
+		hairryList[i]->insight = false;
+	    }
+	}
 
         isCollidingGround = false;
         isCollidingSpring = false;
