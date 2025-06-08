@@ -34,6 +34,8 @@ typedef struct hairryblueprint {
     int id;
     EntityType type;
     bool insight;
+    bool canattack;
+    float attacktime;
 } hairry;
 
 // player struct
@@ -183,6 +185,9 @@ hairry* CloneHairry(const hairry* blueprint, int new_id) {
 	.sighthitbox = (Rectangle){blueprint->pos.x, blueprint->pos.y, 300, blueprint->hitbox.height},
 	.isfacingright = blueprint->isfacingright,
 	.insight = blueprint->insight,
+	.canattack = true,
+	.attackspeed = blueprint->attackspeed,
+	.attacktime = 0,
         .hitbox = (Rectangle){
             blueprint->pos.x,
             blueprint->pos.y,
@@ -493,7 +498,7 @@ int objectCount = 0; // object count is all the sum of all the blocks that are p
 
 int objectPlaceID = 0; // just lets the game know what object you wanna place down, eg. 0 = a spike, 1 = ground
 
-float gravity = 1000.0f;
+float gravity = 1000.0f; // GRAVITY
 
 // variables used when you die
 bool showDeathBox = false;
@@ -606,7 +611,9 @@ int main(void) {
     hairy.type = ENTITY_ENEMY_HAIRRY;
     hairy.vx = -1;
     hairy.vy = 0;
-    hairy.attackspeed = 2;
+    hairy.attackspeed = 1.5;
+    hairy.canattack = true;
+    hairy.attacktime = 0;
     hairy.hitbox = (Rectangle){hairy.pos.x, hairy.pos.y, hairy.size.x, hairy.size.y};
     hairy.sighthitbox = (Rectangle){hairy.pos.x, hairy.pos.y, 300, 60};
     Texture2D hairryTex =  LoadTexture("Hairry.png");
@@ -719,6 +726,18 @@ int main(void) {
                 }
             }
         }
+	for (int i = 0; i < hairryCount; i++) {
+	    if (!hairryList[i]->canattack && (GetTime() - hairryList[i]->attacktime >= hairryList[i]->attackspeed)) {
+		hairryList[i]->canattack = true;
+	    }
+	    if (CheckCollisionRecs(plr.hitbox, hairryList[i]->hitbox)) {
+		if (hairryList[i]->canattack) {
+		    hairryList[i]->canattack = false;
+		    hairryList[i]->attacktime = GetTime();
+		    plr.health -= 15;
+		}
+	    }
+	}
         
         
         objectCount = spikeCount + groundCount + springCount + groundpillarCount + groundpillartopCount + hairryCount;
@@ -1199,6 +1218,8 @@ int main(void) {
 	    DrawRectangle(20, 20, 300, 50, DARKPURPLE);
 	    DrawRectangle(20, 20, stamina * 3, 50, PURPLE);
 	    DrawTexture(staminaTex, 340, 20, PURPLE);
+	    DrawRectangle(390, 20, 300, 50, DARKGREEN);
+	    DrawRectangle(390, 20, plr.health * 3, 50, GREEN);
         }
 
         if (inMainMenu && !inEditor && !inEditorPauseMenu) {
@@ -1364,7 +1385,7 @@ int main(void) {
         }
 
 
-        if (plr.health == 0 && !showDeathBox) {
+        if (plr.health <= 0 && !showDeathBox) {
             showDeathBox = true;
             deathTime = GetTime();
             plr.pos.x = -100000;
