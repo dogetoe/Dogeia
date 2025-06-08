@@ -832,6 +832,21 @@ int main(void) {
                 plr.vx = 0;
                 plr.hitbox.x = plr.pos.x;
             }
+
+	    for (int k = 0; k < hairryCount; k++) {
+		if (CheckCollisionRecs(hairryList[k]->hitbox, groundList[i]->hitbox)) {
+		    if (hairryList[k]->vx > 0) {
+			// falling down
+			hairryList[k]->pos.x = groundList[i]->hitbox.x - hairryList[k]->size.x;
+		    } else if (hairryList[k]->vx < 0) {
+			// hitting head
+			hairryList[k]->pos.x = groundList[i]->hitbox.x + groundList[i]->hitbox.width;
+		    }
+		    hairryList[k]->vx = 0;
+		    hairryList[k]->hitbox.x = hairryList[k]->pos.x;
+		}
+	    }
+
         }
 
         // horizontal collision with spring
@@ -845,6 +860,21 @@ int main(void) {
                 plr.vx = 0;
                 plr.hitbox.x = plr.pos.x;
             }
+
+	    for (int k = 0; k < hairryCount; k++) {
+		if (CheckCollisionRecs(hairryList[k]->hitbox, springList[i]->hitbox)) {
+		    if (hairryList[k]->vx > 0) {
+			// falling down
+			hairryList[k]->pos.x = springList[i]->hitbox.x - hairryList[k]->size.x;
+		    } else if (hairryList[k]->vx < 0) {
+			// hitting head
+			hairryList[k]->pos.x = springList[i]->hitbox.x + springList[i]->hitbox.width;
+		    }
+		    hairryList[k]->vx = 0;
+		    hairryList[k]->hitbox.x = hairryList[k]->pos.x;
+		}
+	    }
+
         }
 
 	// horizontal collision with groundpillar
@@ -858,6 +888,21 @@ int main(void) {
                 plr.vx = 0;
                 plr.hitbox.x = plr.pos.x;
             }
+
+	    for (int k = 0; k < hairryCount; k++) {
+		if (CheckCollisionRecs(hairryList[k]->hitbox, groundpillarList[i]->hitbox)) {
+		    if (hairryList[k]->vx > 0) {
+			// falling down
+			hairryList[k]->pos.x = groundpillarList[i]->hitbox.x - hairryList[k]->size.x;
+		    } else if (hairryList[k]->vx < 0) {
+			// hitting head
+			hairryList[k]->pos.x = groundpillarList[i]->hitbox.x + groundpillarList[i]->hitbox.width;
+		    }
+		    hairryList[k]->vx = 0;
+		    hairryList[k]->hitbox.x = hairryList[k]->pos.x;
+		}
+	    }
+
         }
 
 	// horizontal collision with groundpillar
@@ -871,6 +916,21 @@ int main(void) {
                 plr.vx = 0;
                 plr.hitbox.x = plr.pos.x;
             }
+
+	    for (int k = 0; k < hairryCount; k++) {
+		if (CheckCollisionRecs(hairryList[k]->hitbox, groundpillartopList[i]->hitbox)) {
+		    if (hairryList[k]->vx > 0) {
+			// falling down
+			hairryList[k]->pos.x = groundpillartopList[i]->hitbox.x - hairryList[k]->size.x;
+		    } else if (hairryList[k]->vx < 0) {
+			// hitting head
+			hairryList[k]->pos.x = groundpillartopList[i]->hitbox.x + groundpillartopList[i]->hitbox.width;
+		    }
+		    hairryList[k]->vx = 0;
+		    hairryList[k]->hitbox.x = hairryList[k]->pos.x;
+		}
+	    }
+
         }
 
 
@@ -882,6 +942,8 @@ int main(void) {
 	    for (int i = 0; i < hairryCount; i++) {
 	    	hairryList[i]->vy += gravity * dt;
 		hairryList[i]->pos.y += hairryList[i]->vy * dt;
+		hairryList[i]->hitbox.x = hairryList[i]->pos.x;
+		hairryList[i]->hitbox.y = hairryList[i]->pos.y;
 	    }
 	    if (stamina <= 100) {
 		stamina += 4.0f * dt;
@@ -927,6 +989,21 @@ int main(void) {
             plr.vy = 0;
             plr.hitbox.y = plr.pos.y;
             }
+
+	    for (int k = 0; k < hairryCount; k++) {
+		if (CheckCollisionRecs(hairryList[k]->hitbox, groundList[i]->hitbox)) {
+		    if (hairryList[k]->vy > 0) {
+			// falling down
+			hairryList[k]->pos.y = groundList[i]->hitbox.y - hairryList[k]->size.y;
+		    } else if (hairryList[k]->vy < 0) {
+			// hitting head
+			hairryList[k]->pos.y = groundList[i]->hitbox.y + groundList[i]->hitbox.height;
+		    }
+		    hairryList[k]->vy = 0;
+		    hairryList[k]->hitbox.y = hairryList[k]->pos.y;
+		}
+	    }
+
         }
 
         // vertical collision with spring
@@ -946,6 +1023,22 @@ int main(void) {
             }
             plr.hitbox.y = plr.pos.y;
             }
+
+	    for (int k = 0; k < hairryCount; k++) {
+		if (CheckCollisionRecs(hairryList[k]->hitbox, springList[i]->hitbox)) {
+		    if (hairryList[k]->vy > 0) {
+			// falling down
+			hairryList[k]->pos.y = springList[i]->hitbox.y - hairryList[k]->size.y;
+			hairryList[k]->vy = -700.0;
+		    } else if (hairryList[k]->vy < 0) {
+			// hitting head
+			hairryList[k]->pos.y = springList[i]->hitbox.y + springList[i]->hitbox.height;
+			hairryList[k]->vy = 700.0;
+		    }
+		    hairryList[k]->hitbox.y = hairryList[k]->pos.y;
+		}
+	    }
+
         }
 
 	// vertical collision with groundpillar
@@ -964,6 +1057,20 @@ int main(void) {
             plr.vy = 0;
             plr.hitbox.y = plr.pos.y;
             }
+	    for (int k = 0; k < hairryCount; k++) {
+		if (CheckCollisionRecs(hairryList[k]->hitbox, groundpillarList[i]->hitbox)) {
+		    if (hairryList[k]->vy > 0) {
+			// falling down
+			hairryList[k]->pos.y = groundpillarList[i]->hitbox.y - hairryList[k]->size.y;
+		    } else if (hairryList[k]->vy < 0) {
+			// hitting head
+			hairryList[k]->pos.y = groundpillarList[i]->hitbox.y + groundpillarList[i]->hitbox.height;
+		    }
+		    hairryList[k]->vy = 0;
+		    hairryList[k]->hitbox.y = hairryList[k]->pos.y;
+		}
+	    }
+
         }
 
 	// vertical collision with groundpillartop
@@ -982,6 +1089,20 @@ int main(void) {
             plr.vy = 0;
             plr.hitbox.y = plr.pos.y;
             }
+	    for (int k = 0; k < hairryCount; k++) {
+		if (CheckCollisionRecs(hairryList[k]->hitbox, groundpillartopList[i]->hitbox)) {
+		    if (hairryList[k]->vy > 0) {
+			// falling down
+			hairryList[k]->pos.y = groundpillartopList[i]->hitbox.y - hairryList[k]->size.y;
+		    } else if (hairryList[k]->vy < 0) {
+			// hitting head
+			hairryList[k]->pos.y = groundpillartopList[i]->hitbox.y + groundpillartopList[i]->hitbox.height;
+		    }
+		    hairryList[k]->vy = 0;
+		    hairryList[k]->hitbox.y = hairryList[k]->pos.y;
+		}
+	    }
+
         }
 
 
