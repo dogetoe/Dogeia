@@ -376,7 +376,6 @@ bool rightDashCheck(player *plr) {
 
 	for (int i = 0; i < hairryCount; i++) {
             if (CheckCollisionRecs(plr->dashhitbox, hairryList[i]->hitbox)) { 
-                plr->health -= 15;
                 shoulddash = true;
             }
         }
@@ -441,7 +440,6 @@ bool leftDashCheck(player *plr) {
 
 	for (int i = 0; i < hairryCount; i++) {
             if (CheckCollisionRecs(plr->dashhitbox, hairryList[i]->hitbox)) {
-                plr->health -= 15;
                 shoulddash = true;
             }
         }
