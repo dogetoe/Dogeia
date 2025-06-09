@@ -36,6 +36,10 @@ typedef struct hairryblueprint {
     bool insight;
     bool canattack;
     float attacktime;
+    bool scollideground;
+    bool scollidegroundpillar;
+    bool scollidegroundpillartop;
+    bool scollidespring;
 } hairry;
 
 // player struct
@@ -188,6 +192,10 @@ hairry* CloneHairry(const hairry* blueprint, int new_id) {
 	.canattack = true,
 	.attackspeed = blueprint->attackspeed,
 	.attacktime = 0,
+	.scollideground = false,
+	.scollidegroundpillar = false,
+	.scollidegroundpillartop = false,
+	.scollidespring = false,
         .hitbox = (Rectangle){
             blueprint->pos.x,
             blueprint->pos.y,
@@ -828,38 +836,95 @@ int main(void) {
 
 	t = 2.0 * dt;
 
-	for (int i = 0; i < hairryCount; i++) {
-	   if (!hairryList[i]->insight) {
-	       if (hairryList[i]->isfacingright) {
-		   hairryList[i]->isfacingright = false;
-	       } else if (!hairryList[i]->isfacingright) {
-		   hairryList[i]->isfacingright = true;
-	       }
-	   }
-	    
-	    if (hairryList[i]->isfacingright) {
-		hairryList[i]->sighthitbox.x = hairryList[i]->pos.x;
-		hairryList[i]->sighthitbox.y = hairryList[i]->pos.y;
-		hairryList[i]->sighthitbox.width = 300;
-		hairryList[i]->sighthitbox.height = hairryList[i]->size.y;
-	    } else if (!hairryList[i]->isfacingright) {
-		hairryList[i]->sighthitbox.x = hairryList[i]->pos.x - 240;
-		hairryList[i]->sighthitbox.y = hairryList[i]->pos.y;
-		hairryList[i]->sighthitbox.width = 300;
-		hairryList[i]->sighthitbox.height = hairryList[i]->size.y;
-	    }
+    for (int i = 0; i < hairryCount; i++) {
+        hairryList[i]->scollideground = false;
+        hairryList[i]->scollidespring = false;
+        hairryList[i]->scollidegroundpillar = false;
+        hairryList[i]->scollidegroundpillartop = false;
+
+        if (!hairryList[i]->insight) {
+            if (hairryList[i]->isfacingright) {
+                hairryList[i]->isfacingright = false;
+            } else if (!hairryList[i]->isfacingright) {
+                hairryList[i]->isfacingright = true;
+            }
+        }
+
+        if (hairryList[i]->isfacingright) {
+            hairryList[i]->sighthitbox.x = hairryList[i]->pos.x;
+            hairryList[i]->sighthitbox.y = hairryList[i]->pos.y;
+            hairryList[i]->sighthitbox.width = 300;
+            hairryList[i]->sighthitbox.height = hairryList[i]->size.y;
+        } else if (!hairryList[i]->isfacingright) {
+            hairryList[i]->sighthitbox.x = hairryList[i]->pos.x - 240;
+            hairryList[i]->sighthitbox.y = hairryList[i]->pos.y;
+            hairryList[i]->sighthitbox.width = 300;
+            hairryList[i]->sighthitbox.height = hairryList[i]->size.y;
+        }
 
 
-	    if (CheckCollisionRecs(plr.hitbox, hairryList[i]->sighthitbox) && hairryList[i]->isfacingright == true) {
-		hairryList[i]->pos.x += (plr.pos.x - hairryList[i]->pos.x) * t;
-		hairryList[i]->insight = true;
-	    } else if (CheckCollisionRecs(plr.hitbox, hairryList[i]->sighthitbox) && hairryList[i]->isfacingright == false) {
-		hairryList[i]->pos.x += (plr.pos.x - hairryList[i]->pos.x) * t;
-		hairryList[i]->insight = true;
-	    } else {
-		hairryList[i]->insight = false;
-	    }
-	}
+        if (CheckCollisionRecs(plr.hitbox, hairryList[i]->sighthitbox) && hairryList[i]->isfacingright == true) {
+            for (int k = 0; k < groundCount; k++) {
+                if (CheckCollisionRecs(hairryList[i]->sighthitbox, groundList[k]->hitbox)) {
+                    hairryList[i]->scollideground = true;
+                }
+            }
+
+            for (int k = 0; k < groundpillarCount; k++) {
+                if (CheckCollisionRecs(hairryList[i]->sighthitbox, groundpillarList[k]->hitbox)) {
+                    hairryList[i]->scollidegroundpillar = true;
+                }
+            }
+
+            for (int k = 0; k < groundpillartopCount; k++) {
+                if (CheckCollisionRecs(hairryList[i]->sighthitbox, groundpillartopList[k]->hitbox)) {
+                    hairryList[i]->scollidegroundpillartop = true;
+                }
+            }
+
+            for (int k = 0; k < springCount; k++) {
+                if (CheckCollisionRecs(hairryList[i]->sighthitbox, springList[k]->hitbox)) {
+                    hairryList[i]->scollidespring = true;
+                }
+            }
+
+            if (hairryList[i]->scollidespring == false && hairryList[i]->scollideground == false && hairryList[i]->scollidegroundpillar == false && hairryList[i]->scollidegroundpillartop == false) {
+                hairryList[i]->pos.x += (plr.pos.x - hairryList[i]->pos.x) * t;
+                hairryList[i]->insight = true;
+            }
+        } else if (CheckCollisionRecs(plr.hitbox, hairryList[i]->sighthitbox) && hairryList[i]->isfacingright == false) {
+            for (int k = 0; k < groundCount; k++) {
+                if (CheckCollisionRecs(hairryList[i]->sighthitbox, groundList[k]->hitbox)) {
+                    hairryList[i]->scollideground = true;
+                }
+            }
+
+            for (int k = 0; k < groundpillarCount; k++) {
+                if (CheckCollisionRecs(hairryList[i]->sighthitbox, groundpillarList[k]->hitbox)) {
+                    hairryList[i]->scollidegroundpillar = true;
+                }
+            }
+
+            for (int k = 0; k < groundpillartopCount; k++) {
+                if (CheckCollisionRecs(hairryList[i]->sighthitbox, groundpillartopList[k]->hitbox)) {
+                    hairryList[i]->scollidegroundpillartop = true;
+                }
+            }
+
+            for (int k = 0; k < springCount; k++) {
+                if (CheckCollisionRecs(hairryList[i]->sighthitbox, springList[k]->hitbox)) {
+                    hairryList[i]->scollidespring = true;
+                }
+            }
+
+            if (hairryList[i]->scollidespring == false && hairryList[i]->scollideground == false && hairryList[i]->scollidegroundpillar == false && hairryList[i]->scollidegroundpillartop == false) {
+                hairryList[i]->pos.x += (plr.pos.x - hairryList[i]->pos.x) * t;
+                hairryList[i]->insight = true;
+            }
+        } else {
+            hairryList[i]->insight = false;
+        }
+    }
 
         isCollidingGround = false;
         isCollidingSpring = false;
@@ -1205,6 +1270,7 @@ int main(void) {
 	    DrawGroundPillarTop(*groundpillartopList[i]);
 	}
 	for (int i = 0; i < hairryCount; i++) {
+        DrawRectangleRec(hairryList[i]->sighthitbox, RED);
 	    DrawHairry(*hairryList[i]);
 	}
         if (showDeathBox) {
