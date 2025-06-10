@@ -522,6 +522,8 @@ float hairryspeed = 3.0;
 
 float distancehp;
 
+bool debugmode = false;
+
 Rectangle editorEnterHitbox = (Rectangle){GAME_WIDTH / 2, 600, 50, 50}; // hitbox in main menu to open editor
 Rectangle editorPauseMenuEnterHitbox = (Rectangle){70, 70, 60, 60}; // hitbox in editor to access pause menu
 
@@ -732,6 +734,13 @@ int main(void) {
                 }
             }
         }
+	if (IsKeyPressed(KEY_M)) {
+	    if (debugmode) {
+		debugmode = false;
+	    } else if (!debugmode) {
+		debugmode = true;
+	    }
+	}
 	for (int i = 0; i < hairryCount; i++) {
 	    if (!hairryList[i]->canattack && (GetTime() - hairryList[i]->attacktime >= hairryList[i]->attackspeed)) {
 		hairryList[i]->canattack = true;
@@ -1270,7 +1279,9 @@ int main(void) {
 	    DrawGroundPillarTop(*groundpillartopList[i]);
 	}
 	for (int i = 0; i < hairryCount; i++) {
-        DrawRectangleRec(hairryList[i]->sighthitbox, RED);
+	    if (debugmode) {
+ 		DrawRectangleRec(hairryList[i]->sighthitbox, RED);
+	    }
 	    DrawHairry(*hairryList[i]);
 	}
         if (showDeathBox) {
