@@ -875,25 +875,33 @@ int main(void) {
         if (CheckCollisionRecs(plr.hitbox, hairryList[i]->sighthitbox) && hairryList[i]->isfacingright == true) {
             for (int k = 0; k < groundCount; k++) {
                 if (CheckCollisionRecs(hairryList[i]->sighthitbox, groundList[k]->hitbox)) {
-                    hairryList[i]->scollideground = true;
+			if (plr.pos.x > groundList[k]->pos.x) {
+			    hairryList[i]->scollideground = true;
+			}
                 }
             }
 
             for (int k = 0; k < groundpillarCount; k++) {
                 if (CheckCollisionRecs(hairryList[i]->sighthitbox, groundpillarList[k]->hitbox)) {
-                    hairryList[i]->scollidegroundpillar = true;
+		    if (plr.pos.x > groundpillarList[k]->pos.x) {
+			hairryList[i]->scollidegroundpillar = true;
+		    }
                 }
             }
 
             for (int k = 0; k < groundpillartopCount; k++) {
                 if (CheckCollisionRecs(hairryList[i]->sighthitbox, groundpillartopList[k]->hitbox)) {
-                    hairryList[i]->scollidegroundpillartop = true;
+		    if (plr.pos.x > groundpillartopList[k]->pos.x) {
+			hairryList[i]->scollidegroundpillartop = true;
+		    }
                 }
             }
 
             for (int k = 0; k < springCount; k++) {
                 if (CheckCollisionRecs(hairryList[i]->sighthitbox, springList[k]->hitbox)) {
-                    hairryList[i]->scollidespring = true;
+		    if (plr.pos.x > springList[k]->pos.x) {
+			hairryList[i]->scollidespring = true;	
+		    }
                 }
             }
 
@@ -904,25 +912,33 @@ int main(void) {
         } else if (CheckCollisionRecs(plr.hitbox, hairryList[i]->sighthitbox) && hairryList[i]->isfacingright == false) {
             for (int k = 0; k < groundCount; k++) {
                 if (CheckCollisionRecs(hairryList[i]->sighthitbox, groundList[k]->hitbox)) {
-                    hairryList[i]->scollideground = true;
+		    if (plr.pos.x < groundList[k]->pos.x) {
+			hairryList[i]->scollideground = true;
+		    }
                 }
             }
 
             for (int k = 0; k < groundpillarCount; k++) {
                 if (CheckCollisionRecs(hairryList[i]->sighthitbox, groundpillarList[k]->hitbox)) {
-                    hairryList[i]->scollidegroundpillar = true;
+		    if (plr.pos.x < groundpillarList[k]->pos.x) {
+			hairryList[i]->scollidegroundpillar = true;
+		    }
                 }
             }
 
             for (int k = 0; k < groundpillartopCount; k++) {
                 if (CheckCollisionRecs(hairryList[i]->sighthitbox, groundpillartopList[k]->hitbox)) {
-                    hairryList[i]->scollidegroundpillartop = true;
+		    if (plr.pos.x < groundpillartopList[k]->pos.x) {
+			hairryList[i]->scollidegroundpillartop = true;
+		    }
                 }
             }
 
             for (int k = 0; k < springCount; k++) {
                 if (CheckCollisionRecs(hairryList[i]->sighthitbox, springList[k]->hitbox)) {
-                    hairryList[i]->scollidespring = true;
+		    if (plr.pos.x < springList[k]->pos.x) {
+			hairryList[i]->scollidespring = true;
+		    }
                 }
             }
 
