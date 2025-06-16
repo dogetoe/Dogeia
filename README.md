@@ -1,2 +1,1 @@
 Dogeia is a game where you are a doge who was recently promoted to a knight and now goes under the title Sir Adam Dogeingknight and is on a mission to stop the growing tension and war between the country of Dogeia and the Hairries.
-If you are NOT a developer for dogeia and you see this (since at the time of creating this this is a private repository), please do not look at the source code or leak it.
