@@ -3,6 +3,7 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <math.h>
+#include <stdio.h>
 
 #define GAME_WIDTH  1920
 #define GAME_HEIGHT 1080
@@ -526,6 +527,7 @@ bool debugmode = false;
 
 Rectangle editorEnterHitbox = (Rectangle){GAME_WIDTH / 2, 600, 50, 50}; // hitbox in main menu to open editor
 Rectangle editorPauseMenuEnterHitbox = (Rectangle){70, 70, 60, 60}; // hitbox in editor to access pause menu
+Rectangle editorEnterPlaytestHitbox = (Rectangle){50, GAME_HEIGHT / 2 - 70, 70, 70}; // hitbox in editor to access playtest
 
 int main(void) {
     SetConfigFlags(FLAG_FULLSCREEN_MODE);
@@ -734,6 +736,34 @@ int main(void) {
                 }
             }
         }
+	if (IsKeyPressed(KEY_V)) {
+	    FILE *save = fopen("save.bin", "rb");
+	    if (!save) {
+		printf("Couldn't open save file for reading\n");
+	    } else {
+		fread(&groundCount, sizeof(int), 1, save);
+		printf("loading %d ground blocks\n", groundCount);
+		for (int i = 0; i < groundCount; i++) {
+		    groundList[i] = malloc(sizeof(ground));
+		    fread(groundList[i], sizeof(ground), 1, save);
+		    groundList[i]->texture = &groundTex;
+		}
+		fclose(save);
+	    }
+	}
+	if (IsKeyPressed(KEY_N)) {
+	    FILE *save = fopen("save.bin", "wb");
+	    if (!save) {
+		printf("Couldn't open/find save file for writing\n");
+	    } else {
+		fwrite(&groundCount, sizeof(int), 1, save);
+		printf("saving %d ground blocks\n", groundCount);
+		for (int i = 0; i < groundCount; i++) {
+		    fwrite(groundList[i], sizeof(ground), 1, save);
+		}
+		fclose(save);
+	    }
+	}
 	if (IsKeyPressed(KEY_M)) {
 	    if (debugmode) {
 		debugmode = false;
@@ -757,7 +787,7 @@ int main(void) {
         
         objectCount = spikeCount + groundCount + springCount + groundpillarCount + groundpillartopCount + hairryCount;
         if (inEditor) {
-            isPlayTesting = true;
+	    isPlayTesting = true;
             if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) && objectCount <= 40000) {
                 Vector2 pos = GetMousePosition();
                 pos.x = round60(pos.x);
