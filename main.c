@@ -739,14 +739,49 @@ int main(void) {
 	if (IsKeyPressed(KEY_V)) {
 	    FILE *save = fopen("save.bin", "rb");
 	    if (!save) {
-		printf("Couldn't open save file for reading\n");
+		printf("error while reading save file\n");
 	    } else {
 		fread(&groundCount, sizeof(int), 1, save);
+		fread(&spikeCount, sizeof(int), 1, save);
+		fread(&springCount, sizeof(int), 1, save);
+		fread(&groundpillarCount, sizeof(int), 1, save);
+		fread(&groundpillartopCount, sizeof(int), 1, save);
+		fread(&hairryCount, sizeof(int), 1, save);
 		printf("loading %d ground blocks\n", groundCount);
+		printf("loading %d spikes\n", spikeCount);
+		printf("loading %d springs\n", springCount);
+		printf("loading %d ground pillar blocks\n", groundpillarCount);
+		printf("loading %d ground pillar top blocks\n", groundpillartopCount);
+		printf("loading %d hairries\n", hairryCount);
 		for (int i = 0; i < groundCount; i++) {
 		    groundList[i] = malloc(sizeof(ground));
 		    fread(groundList[i], sizeof(ground), 1, save);
 		    groundList[i]->texture = &groundTex;
+		}
+		for (int i = 0; i < spikeCount; i++) {
+		    spikeList[i] = malloc(sizeof(spike));
+		    fread(spikeList[i], sizeof(spike), 1, save);
+		    spikeList[i]->texture = &spikeTex;
+		}
+		for (int i = 0; i < springCount; i++) {
+		    springList[i] = malloc(sizeof(spring));
+		    fread(springList[i], sizeof(spring), 1, save);
+		    springList[i]->texture = &springTex;
+		}
+		for (int i = 0; i < groundpillarCount; i++) {
+		    groundpillarList[i] = malloc(sizeof(groundpillar));
+		    fread(groundpillarList[i], sizeof(groundpillar), 1, save);
+		    groundpillarList[i]->texture = &groundPillarTex;
+		}
+		for (int i = 0; i < groundpillartopCount; i++) {
+		    groundpillartopList[i] = malloc(sizeof(groundpillartop));
+		    fread(groundpillartopList[i], sizeof(groundpillartop), 1, save);
+		    groundpillartopList[i]->texture = &groundPillarTopTex;
+		}
+		for (int i = 0; i < hairryCount; i++) {
+		    hairryList[i] = malloc(sizeof(hairry));
+		    fread(hairryList[i], sizeof(hairry), 1, save);
+		    hairryList[i]->texture = &hairryTex;
 		}
 		fclose(save);
 	    }
@@ -754,12 +789,37 @@ int main(void) {
 	if (IsKeyPressed(KEY_N)) {
 	    FILE *save = fopen("save.bin", "wb");
 	    if (!save) {
-		printf("Couldn't open/find save file for writing\n");
+		printf("error while writing to save file\n");
 	    } else {
 		fwrite(&groundCount, sizeof(int), 1, save);
+		fwrite(&spikeCount, sizeof(int), 1, save);
+		fwrite(&springCount, sizeof(int), 1, save);
+		fwrite(&groundpillarCount, sizeof(int), 1, save);
+		fwrite(&groundpillartopCount, sizeof(int), 1, save);
+		fwrite(&hairryCount, sizeof(int), 1, save);
 		printf("saving %d ground blocks\n", groundCount);
+		printf("saving %d spikes\n", spikeCount);
+		printf("saving %d springs\n", springCount);
+		printf("saving %d ground pillar blocks\n", groundpillarCount);
+		printf("saving %d ground pillar top blocks\n", groundpillartopCount);
+		printf("saving %d hairries\n", hairryCount);
 		for (int i = 0; i < groundCount; i++) {
 		    fwrite(groundList[i], sizeof(ground), 1, save);
+		}
+		for (int i = 0; i < spikeCount; i++) {
+		    fwrite(spikeList[i], sizeof(spike), 1, save);
+		}
+		for (int i = 0; i < springCount; i++) {
+		    fwrite(springList[i], sizeof(spike), 1, save);
+		}
+		for (int i = 0; i < groundpillarCount; i++) {
+		    fwrite(groundpillarList[i], sizeof(groundpillar), 1, save);
+		}
+		for (int i = 0; i < groundpillartopCount; i++) {
+		    fwrite(groundpillartopList[i], sizeof(groundpillartop), 1, save);
+		}
+		for (int i = 0; i < hairryCount; i++) {
+		    fwrite(hairryList[i], sizeof(hairry), 1, save);
 		}
 		fclose(save);
 	    }
