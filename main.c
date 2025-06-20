@@ -529,6 +529,8 @@ Rectangle editorEnterHitbox = (Rectangle){GAME_WIDTH / 2, 600, 50, 50}; // hitbo
 Rectangle editorPauseMenuEnterHitbox = (Rectangle){70, 70, 60, 60}; // hitbox in editor to access pause menu
 Rectangle editorEnterPlaytestHitbox = (Rectangle){50, GAME_HEIGHT / 2 - 70, 70, 70}; // hitbox in editor to access playtest
 
+float idi60 = 0.0;
+
 int main(void) {
     SetConfigFlags(FLAG_FULLSCREEN_MODE);
     InitWindow(GAME_WIDTH, GAME_HEIGHT, "Dogeia");
@@ -1371,25 +1373,52 @@ int main(void) {
 
         for (int i = 0; i < spikeCount; i++) {
             DrawSpike(*spikeList[i]);
+	    if (debugmode) {
+		DrawRectangleLinesEx(spikeList[i]->hitbox, 3, RED);
+	    }
         }
         for (int i = 0; i < groundCount; i++) {
             DrawGround(*groundList[i]);
+	    if (debugmode) {
+		DrawRectangleLinesEx(groundList[i]->hitbox, 3, DARKBLUE);
+	    }
         }
         for (int i = 0; i < springCount; i++) {
             DrawSpring(*springList[i]);
+	    if (debugmode) {
+		DrawRectangleLinesEx(springList[i]->hitbox, 3, GREEN);	    
+	    }
         }
 	for (int i = 0; i < groundpillarCount; i++) {
 	    DrawGroundPillar(*groundpillarList[i]);
+	    if (debugmode) {
+		DrawRectangleLinesEx(groundpillarList[i]->hitbox, 3, DARKBLUE);
+	    }
 	}
 	for (int i = 0; i < groundpillartopCount; i++) {
 	    DrawGroundPillarTop(*groundpillartopList[i]);
+	    if (debugmode) {
+		DrawRectangleLinesEx(groundpillartopList[i]->hitbox, 3, DARKBLUE);
+	    }
 	}
 	for (int i = 0; i < hairryCount; i++) {
 	    if (debugmode) {
- 		DrawRectangleRec(hairryList[i]->sighthitbox, RED);
+ 		DrawRectangleLinesEx(hairryList[i]->sighthitbox, 3, RED);
 	    }
 	    DrawHairry(*hairryList[i]);
 	}
+	// loop for showing lines while in editor VERTICAL
+	for (int i = 0; i <= 40000; i += 60) {
+	    if (inEditor) {
+		DrawLine(i, -38920, i, 1080, BLACK);
+	    }
+	}
+	// loop for showing lines while in editor horizontal
+	if (inEditor) {
+        for (int i = -60000; i <= 1080; i += 60) {
+            DrawLine(0, i, 40000, i, BLACK);
+        }
+    }
         if (showDeathBox) {
             DrawText("You died...", 960, 540, 20, RAYWHITE);
         }
@@ -1401,6 +1430,9 @@ int main(void) {
 	    DrawTexture(staminaTex, 340, 20, PURPLE);
 	    DrawRectangle(390, 20, 300, 50, DARKGREEN);
 	    DrawRectangle(390, 20, plr.health * 3, 50, GREEN);
+	    if (debugmode) {
+		DrawRectangleLinesEx(plr.hitbox, 4, DARKBLUE);
+	    }
         }
 
         if (inMainMenu && !inEditor && !inEditorPauseMenu) {
